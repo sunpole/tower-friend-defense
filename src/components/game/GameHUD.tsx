@@ -1,6 +1,8 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { TOTAL_WAVES } from '@/game/types';
+import { Switch } from '@/components/ui/switch';
+import { WaveInfo } from '@/game/types';
+import { WAVE_CONFIG } from '@/game/config';
 
 interface GameHUDProps {
   wave: number;
@@ -8,9 +10,12 @@ interface GameHUDProps {
   gold: number;
   waveInProgress: boolean;
   gameStatus: 'menu' | 'playing' | 'paused' | 'victory' | 'defeat';
+  waveInfo: WaveInfo;
+  show8Direction: boolean;
   onStartWave: () => void;
   onPause: () => void;
   onNewGame: () => void;
+  onTogglePathfinding: () => void;
 }
 
 export const GameHUD: React.FC<GameHUDProps> = ({
@@ -19,15 +24,18 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   gold,
   waveInProgress,
   gameStatus,
+  waveInfo,
+  show8Direction,
   onStartWave,
   onPause,
   onNewGame,
+  onTogglePathfinding,
 }) => {
   return (
     <div className="bg-card p-4 rounded-lg border border-border">
       <div className="grid grid-cols-3 gap-4 mb-4">
         <div className="text-center">
-          <div className="text-2xl font-bold text-foreground">{wave}/{TOTAL_WAVES}</div>
+          <div className="text-2xl font-bold text-foreground">{wave}/{WAVE_CONFIG.totalWaves}</div>
           <div className="text-xs text-muted-foreground">Волна</div>
         </div>
         <div className="text-center">
@@ -40,19 +48,42 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         </div>
       </div>
 
-      <div className="flex gap-2">
-        {gameStatus === 'playing' && !waveInProgress && wave < TOTAL_WAVES && (
+      {/* Wave Info */}
+      {waveInProgress && (
+        <div className="mb-4 p-2 bg-muted rounded text-center">
+          <div className="text-sm font-mono">
+            👾 {waveInfo.total}/{waveInfo.spawned}/{waveInfo.alive}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            всего/появилось/живо
+          </div>
+        </div>
+      )}
+
+      {/* Pathfinding Toggle */}
+      <div className="mb-4 flex items-center justify-between p-2 bg-muted rounded">
+        <span className="text-xs text-muted-foreground">
+          Путь: {show8Direction ? '8 сторон' : '4 стороны'}
+        </span>
+        <Switch
+          checked={show8Direction}
+          onCheckedChange={onTogglePathfinding}
+        />
+      </div>
+
+      <div className="flex gap-2 flex-wrap">
+        {gameStatus === 'playing' && !waveInProgress && wave < WAVE_CONFIG.totalWaves && (
           <Button className="flex-1" onClick={onStartWave}>
-            Начать волну {wave + 1}
+            Волна {wave + 1}
           </Button>
         )}
         {gameStatus === 'playing' && waveInProgress && (
-          <div className="flex-1 text-center py-2 text-muted-foreground">
-            Волна в процессе...
+          <div className="flex-1 text-center py-2 text-muted-foreground text-sm">
+            Волна...
           </div>
         )}
         {gameStatus === 'playing' && (
-          <Button variant="outline" onClick={onPause}>
+          <Button variant="outline" size="icon" onClick={onPause}>
             ⏸️
           </Button>
         )}
@@ -61,8 +92,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             ▶️ Продолжить
           </Button>
         )}
-        <Button variant="secondary" onClick={onNewGame}>
-          🔄 Новая игра
+        <Button variant="secondary" size="icon" onClick={onNewGame}>
+          🔄
         </Button>
       </div>
 
