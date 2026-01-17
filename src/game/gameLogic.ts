@@ -3,15 +3,19 @@ import {
   Enemy,
   Tower,
   Projectile,
-  EnemyType,
   Position,
-  ENEMY_CONFIGS,
-  TOWER_CONFIGS,
   CELL_SIZE,
-  GRID_SIZE,
-  UPGRADE_MULTIPLIERS,
-  BOSS_WAVE_INTERVAL,
+  WaveInfo,
 } from './types';
+import { 
+  ENEMY_CONFIGS, 
+  TOWER_CONFIGS, 
+  UPGRADE_CONFIG,
+  BOSS_CONFIG,
+  VISUAL_CONFIG,
+  generateWaveEnemies,
+  EnemyType,
+} from './config';
 import { findPath } from './pathfinding';
 
 let idCounter = 0;
@@ -36,16 +40,17 @@ export function createEnemy(
   startCell: Position,
   grid: any[][],
   endCell: Position,
-  isBoss: boolean = false
+  isBoss: boolean = false,
+  use8Directions: boolean = true
 ): Enemy | null {
   const config = ENEMY_CONFIGS[type];
-  const path = findPath(grid, startCell, endCell);
+  const path = findPath(grid, startCell, endCell, use8Directions);
   
   if (!path) return null;
 
-  const hpMultiplier = isBoss ? 40 : 1;
-  const speedMultiplier = isBoss ? 0.25 : 1;
-  const rewardMultiplier = isBoss ? 20 : 1;
+  const hpMultiplier = isBoss ? BOSS_CONFIG.hpMultiplier : 1;
+  const speedMultiplier = isBoss ? BOSS_CONFIG.speedMultiplier : 1;
+  const rewardMultiplier = isBoss ? BOSS_CONFIG.rewardMultiplier : 1;
 
   return {
     id: generateId(),
@@ -105,12 +110,13 @@ export function updateEnemies(
 export function recalculateEnemyPaths(
   enemies: Enemy[],
   grid: any[][],
-  endCell: Position
+  endCell: Position,
+  use8Directions: boolean = true
 ): Enemy[] {
   return enemies.map((enemy) => {
     const currentGridX = pixelToGrid(enemy.x);
     const currentGridY = pixelToGrid(enemy.y);
-    const path = findPath(grid, { x: currentGridX, y: currentGridY }, endCell);
+    const path = findPath(grid, { x: currentGridX, y: currentGridY }, endCell, use8Directions);
     
     if (path) {
       return {
@@ -128,9 +134,9 @@ export function getTowerStats(tower: Tower): { damage: number; range: number; fi
   const levelMultiplier = tower.level - 1;
   
   return {
-    damage: Math.round(baseConfig.damage * Math.pow(UPGRADE_MULTIPLIERS.damage, levelMultiplier)),
-    range: Math.round(baseConfig.range * Math.pow(UPGRADE_MULTIPLIERS.range, levelMultiplier)),
-    fireRate: baseConfig.fireRate * Math.pow(UPGRADE_MULTIPLIERS.fireRate, levelMultiplier),
+    damage: Math.round(baseConfig.damage * Math.pow(UPGRADE_CONFIG.damageMultiplier, levelMultiplier)),
+    range: Math.round(baseConfig.range * Math.pow(UPGRADE_CONFIG.rangeMultiplier, levelMultiplier)),
+    fireRate: baseConfig.fireRate * Math.pow(UPGRADE_CONFIG.fireRateMultiplier, levelMultiplier),
   };
 }
 
@@ -171,6 +177,7 @@ export function updateTowers(
             towerId: tower.id,
             radius: 0,
             maxRadius: stats.range,
+            createdAt: Date.now(),
           });
         } else {
           // Bullet or line
@@ -185,6 +192,7 @@ export function updateTowers(
             damage: stats.damage,
             towerId: tower.id,
             enemyId: target.id,
+            createdAt: Date.now(),
           });
         }
 
@@ -229,8 +237,25 @@ export function updateProjectiles(
 
         updatedProjectiles.push({ ...projectile, radius: newRadius });
       }
+    } else if (projectile.type === 'line') {
+      // Laser - instant hit but visible for a short time
+      const age = Date.now() - (projectile.createdAt || Date.now());
+      const laserDurationMs = VISUAL_CONFIG.laserDuration * 1000;
+      
+      if (age < laserDurationMs) {
+        // Still visible
+        updatedProjectiles.push(projectile);
+        
+        // Only deal damage on first frame
+        if (age < 20) {
+          const targetEnemy = updatedEnemies.find((e) => e.id === projectile.enemyId);
+          if (targetEnemy) {
+            targetEnemy.hp -= projectile.damage;
+          }
+        }
+      }
     } else {
-      // Move towards target
+      // Bullet - move towards target
       const dx = projectile.targetX - projectile.x;
       const dy = projectile.targetY - projectile.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -281,31 +306,27 @@ export function updateProjectiles(
 }
 
 export function getWaveEnemies(wave: number): { type: EnemyType; isBoss: boolean }[] {
-  const enemies: { type: EnemyType; isBoss: boolean }[] = [];
-  const count = 5 + wave;
-  const isBossWave = wave % BOSS_WAVE_INTERVAL === 0;
-
-  const types: EnemyType[] = ['simple', 'fat', 'thin', 'double'];
-  
-  for (let i = 0; i < count; i++) {
-    const isBoss = isBossWave && i === count - 1; // Last enemy is boss on boss waves
-    const typeIndex = Math.floor(Math.random() * (Math.min(wave, 4))); // More variety at higher waves
-    enemies.push({ type: types[typeIndex], isBoss });
-  }
-
-  return enemies;
+  return generateWaveEnemies(wave);
 }
 
 export function getUpgradeCost(tower: Tower): number {
   const baseCost = TOWER_CONFIGS[tower.type].cost;
-  return Math.round(baseCost * tower.level * 0.75);
+  return UPGRADE_CONFIG.getUpgradeCost(baseCost, tower.level);
 }
 
 export function getSellValue(tower: Tower): number {
   const baseCost = TOWER_CONFIGS[tower.type].cost;
   let totalInvested = baseCost;
   for (let i = 1; i < tower.level; i++) {
-    totalInvested += Math.round(baseCost * i * 0.75);
+    totalInvested += UPGRADE_CONFIG.getUpgradeCost(baseCost, i);
   }
-  return Math.round(totalInvested * 0.6);
+  return Math.round(totalInvested * UPGRADE_CONFIG.getSellValueMultiplier);
+}
+
+export function createInitialWaveInfo(): WaveInfo {
+  return {
+    total: 0,
+    spawned: 0,
+    alive: 0,
+  };
 }

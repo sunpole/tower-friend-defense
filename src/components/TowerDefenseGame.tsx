@@ -3,15 +3,19 @@ import {
   GameState,
   GridCell,
   Tower,
-  TowerType,
-  GRID_SIZE,
   CELL_SIZE,
-  TOWER_CONFIGS,
   STARTING_GOLD,
   STARTING_LIVES,
-  TOTAL_WAVES,
-  EnemyType,
+  WaveInfo,
 } from '@/game/types';
+import { 
+  GRID_CONFIG, 
+  TOWER_CONFIGS, 
+  WAVE_CONFIG,
+  PATHFINDING_CONFIG,
+  TowerType,
+  EnemyType,
+} from '@/game/config';
 import { findPath, canPlaceTower } from '@/game/pathfinding';
 import {
   createEnemy,
@@ -23,6 +27,7 @@ import {
   getSellValue,
   gridToPixel,
   recalculateEnemyPaths,
+  createInitialWaveInfo,
 } from '@/game/gameLogic';
 import { useGameLoop } from '@/game/useGameLoop';
 import { GameGrid } from './game/GameGrid';
@@ -37,18 +42,15 @@ import { DebugConsole } from './game/DebugConsole';
 
 const createInitialGrid = (): GridCell[][] => {
   const grid: GridCell[][] = [];
-  for (let y = 0; y < GRID_SIZE; y++) {
+  for (let y = 0; y < GRID_CONFIG.size; y++) {
     const row: GridCell[] = [];
-    for (let x = 0; x < GRID_SIZE; x++) {
+    for (let x = 0; x < GRID_CONFIG.size; x++) {
       row.push({ x, y, isBlocked: false, tower: null });
     }
     grid.push(row);
   }
   return grid;
 };
-
-const START_CELL = { x: 0, y: 4 };
-const END_CELL = { x: 9, y: 5 };
 
 const createInitialState = (): GameState => ({
   grid: createInitialGrid(),
@@ -65,8 +67,10 @@ const createInitialState = (): GameState => ({
   enemiesSpawned: 0,
   enemiesToSpawn: 0,
   spawnTimer: 0,
-  startCell: START_CELL,
-  endCell: END_CELL,
+  startCell: GRID_CONFIG.startCell,
+  endCell: GRID_CONFIG.endCell,
+  showPathfinding: PATHFINDING_CONFIG.use8Directions,
+  waveInfo: createInitialWaveInfo(),
 });
 
 let towerIdCounter = 0;
@@ -75,6 +79,7 @@ export const TowerDefenseGame: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(createInitialState());
   const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
   const [canPlace, setCanPlace] = useState(false);
+  const [show8DirectionPath, setShow8DirectionPath] = useState(PATHFINDING_CONFIG.use8Directions);
   const waveEnemiesRef = useRef<{ type: EnemyType; isBoss: boolean }[]>([]);
 
   const gameLoop = useCallback(
@@ -95,16 +100,24 @@ export const TowerDefenseGame: React.FC = () => {
                 newState.startCell,
                 newState.grid,
                 newState.endCell,
-                enemyConfig.isBoss
+                enemyConfig.isBoss,
+                show8DirectionPath
               );
               if (enemy) {
                 newState.enemies = [...newState.enemies, enemy];
               }
             }
             newState.enemiesSpawned++;
-            newState.spawnTimer = 1; // 1 second between spawns
+            newState.spawnTimer = WAVE_CONFIG.spawnInterval;
           }
         }
+
+        // Update wave info
+        newState.waveInfo = {
+          total: newState.enemiesToSpawn,
+          spawned: newState.enemiesSpawned,
+          alive: newState.enemies.length,
+        };
 
         // Check wave complete
         if (
@@ -114,7 +127,7 @@ export const TowerDefenseGame: React.FC = () => {
         ) {
           newState.waveInProgress = false;
           
-          if (newState.wave >= TOTAL_WAVES) {
+          if (newState.wave >= WAVE_CONFIG.totalWaves) {
             newState.gameStatus = 'victory';
           }
         }
@@ -156,10 +169,13 @@ export const TowerDefenseGame: React.FC = () => {
         newState.enemies = [...projectileResult.updatedEnemies, ...projectileResult.newEnemies];
         newState.gold += projectileResult.goldEarned;
 
+        // Update wave info after combat
+        newState.waveInfo.alive = newState.enemies.length;
+
         return newState;
       });
     },
-    []
+    [show8DirectionPath]
   );
 
   useGameLoop(gameLoop, gameState.gameStatus === 'playing');
@@ -185,7 +201,7 @@ export const TowerDefenseGame: React.FC = () => {
           const config = TOWER_CONFIGS[prev.selectedTowerType];
           if (prev.gold < config.cost) return prev;
 
-          if (!canPlaceTower(prev.grid, x, y, prev.startCell, prev.endCell)) {
+          if (!canPlaceTower(prev.grid, x, y, prev.startCell, prev.endCell, show8DirectionPath)) {
             return prev;
           }
 
@@ -209,7 +225,7 @@ export const TowerDefenseGame: React.FC = () => {
           newGrid[y][x].tower = newTower;
 
           // Recalculate paths for existing enemies
-          const updatedEnemies = recalculateEnemyPaths(prev.enemies, newGrid, prev.endCell);
+          const updatedEnemies = recalculateEnemyPaths(prev.enemies, newGrid, prev.endCell, show8DirectionPath);
 
           return {
             ...prev,
@@ -225,24 +241,25 @@ export const TowerDefenseGame: React.FC = () => {
         return { ...prev, selectedTower: null };
       });
     },
-    []
+    [show8DirectionPath]
   );
 
   const handleCellHover = useCallback(
     (x: number, y: number) => {
       setHoveredCell({ x, y });
       if (gameState.selectedTowerType) {
-        const canPlace = canPlaceTower(
+        const canPlaceResult = canPlaceTower(
           gameState.grid,
           x,
           y,
           gameState.startCell,
-          gameState.endCell
+          gameState.endCell,
+          show8DirectionPath
         );
-        setCanPlace(canPlace);
+        setCanPlace(canPlaceResult);
       }
     },
-    [gameState.selectedTowerType, gameState.grid, gameState.startCell, gameState.endCell]
+    [gameState.selectedTowerType, gameState.grid, gameState.startCell, gameState.endCell, show8DirectionPath]
   );
 
   const handleCellLeave = useCallback(() => {
@@ -302,7 +319,7 @@ export const TowerDefenseGame: React.FC = () => {
       newGrid[tower.gridY][tower.gridX].tower = null;
 
       // Recalculate paths for existing enemies
-      const updatedEnemies = recalculateEnemyPaths(prev.enemies, newGrid, prev.endCell);
+      const updatedEnemies = recalculateEnemyPaths(prev.enemies, newGrid, prev.endCell, show8DirectionPath);
 
       return {
         ...prev,
@@ -313,11 +330,11 @@ export const TowerDefenseGame: React.FC = () => {
         selectedTower: null,
       };
     });
-  }, []);
+  }, [show8DirectionPath]);
 
   const handleStartWave = useCallback(() => {
     setGameState((prev) => {
-      if (prev.waveInProgress || prev.wave >= TOTAL_WAVES) return prev;
+      if (prev.waveInProgress || prev.wave >= WAVE_CONFIG.totalWaves) return prev;
 
       const newWave = prev.wave + 1;
       const enemies = getWaveEnemies(newWave);
@@ -330,6 +347,11 @@ export const TowerDefenseGame: React.FC = () => {
         enemiesSpawned: 0,
         enemiesToSpawn: enemies.length,
         spawnTimer: 0,
+        waveInfo: {
+          total: enemies.length,
+          spawned: 0,
+          alive: 0,
+        },
       };
     });
   }, []);
@@ -347,13 +369,23 @@ export const TowerDefenseGame: React.FC = () => {
     towerIdCounter = 0;
   }, []);
 
-  const gridPixelSize = GRID_SIZE * CELL_SIZE;
+  const handleTogglePathfinding = useCallback(() => {
+    setShow8DirectionPath((prev) => !prev);
+    // Recalculate paths for all enemies when toggle changes
+    setGameState((prev) => ({
+      ...prev,
+      showPathfinding: !show8DirectionPath,
+      enemies: recalculateEnemyPaths(prev.enemies, prev.grid, prev.endCell, !show8DirectionPath),
+    }));
+  }, [show8DirectionPath]);
+
+  const gridPixelSize = GRID_CONFIG.size * CELL_SIZE;
 
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold text-center text-foreground mb-4">
-          🏰 Tower Defense
+          🏰 Tower Defense v2.0
         </h1>
 
         <div className="flex flex-col lg:flex-row gap-4">
@@ -365,9 +397,12 @@ export const TowerDefenseGame: React.FC = () => {
               gold={gameState.gold}
               waveInProgress={gameState.waveInProgress}
               gameStatus={gameState.gameStatus}
+              waveInfo={gameState.waveInfo}
+              show8Direction={show8DirectionPath}
               onStartWave={handleStartWave}
               onPause={handlePause}
               onNewGame={handleNewGame}
+              onTogglePathfinding={handleTogglePathfinding}
             />
             <TowerShop
               gold={gameState.gold}
