@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { WaveInfo } from '@/game/types';
 import { WAVE_CONFIG } from '@/game/config';
+import { Eye, EyeOff } from 'lucide-react';
 
 interface GameHUDProps {
   wave: number;
@@ -12,10 +13,12 @@ interface GameHUDProps {
   gameStatus: 'menu' | 'playing' | 'paused' | 'victory' | 'defeat';
   waveInfo: WaveInfo;
   show8Direction: boolean;
+  showEnemyPath: boolean;
   onStartWave: () => void;
   onPause: () => void;
   onNewGame: () => void;
   onTogglePathfinding: () => void;
+  onToggleShowPath: () => void;
 }
 
 export const GameHUD: React.FC<GameHUDProps> = ({
@@ -26,10 +29,12 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   gameStatus,
   waveInfo,
   show8Direction,
+  showEnemyPath,
   onStartWave,
   onPause,
   onNewGame,
   onTogglePathfinding,
+  onToggleShowPath,
 }) => {
   return (
     <div className="bg-card p-4 rounded-lg border border-border">
@@ -60,10 +65,22 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         </div>
       )}
 
+      {/* Path Toggle */}
+      <div className="mb-3 flex items-center justify-between p-2 bg-muted rounded">
+        <span className="text-xs text-muted-foreground flex items-center gap-1">
+          {showEnemyPath ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+          Путь врагов
+        </span>
+        <Switch
+          checked={showEnemyPath}
+          onCheckedChange={onToggleShowPath}
+        />
+      </div>
+
       {/* Pathfinding Toggle */}
       <div className="mb-4 flex items-center justify-between p-2 bg-muted rounded">
         <span className="text-xs text-muted-foreground">
-          Путь: {show8Direction ? '8 сторон' : '4 стороны'}
+          Поиск: {show8Direction ? '8 сторон' : '4 стороны'}
         </span>
         <Switch
           checked={show8Direction}
@@ -74,12 +91,12 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       <div className="flex gap-2 flex-wrap">
         {gameStatus === 'playing' && !waveInProgress && wave < WAVE_CONFIG.totalWaves && (
           <Button className="flex-1" onClick={onStartWave}>
-            Волна {wave + 1}
+            🚀 Волна {wave + 1}
           </Button>
         )}
         {gameStatus === 'playing' && waveInProgress && (
-          <div className="flex-1 text-center py-2 text-muted-foreground text-sm">
-            Волна...
+          <div className="flex-1 text-center py-2 text-muted-foreground text-sm animate-pulse">
+            ⚔️ Бой...
           </div>
         )}
         {gameStatus === 'playing' && (
