@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   GameState,
   GridCell,
@@ -13,6 +13,8 @@ import {
   TOWER_CONFIGS, 
   WAVE_CONFIG,
   PATHFINDING_CONFIG,
+  VISUAL_CONFIG,
+  UPGRADE_CONFIG,
   TowerType,
   EnemyType,
 } from '@/game/config';
@@ -30,14 +32,17 @@ import {
   createInitialWaveInfo,
 } from '@/game/gameLogic';
 import { useGameLoop } from '@/game/useGameLoop';
+import { audioManager } from '@/game/audioManager';
 import { GameGrid } from './game/GameGrid';
 import { TowerRenderer } from './game/TowerRenderer';
 import { EnemyRenderer } from './game/EnemyRenderer';
 import { ProjectileRenderer } from './game/ProjectileRenderer';
+import { PathVisualizer } from './game/PathVisualizer';
 import { TowerShop } from './game/TowerShop';
 import { TowerInfo } from './game/TowerInfo';
 import { GameHUD } from './game/GameHUD';
 import { EnemyLegend } from './game/EnemyLegend';
+import { AudioControls } from './game/AudioControls';
 import { DebugConsole } from './game/DebugConsole';
 
 const createInitialGrid = (): GridCell[][] => {
@@ -80,8 +85,35 @@ export const TowerDefenseGame: React.FC = () => {
   const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
   const [canPlace, setCanPlace] = useState(false);
   const [show8DirectionPath, setShow8DirectionPath] = useState(PATHFINDING_CONFIG.use8Directions);
+  const [showEnemyPath, setShowEnemyPath] = useState(VISUAL_CONFIG.showEnemyPath);
   const waveEnemiesRef = useRef<{ type: EnemyType; isBoss: boolean }[]>([]);
+  const prevLivesRef = useRef(STARTING_LIVES);
+  const prevWaveRef = useRef(0);
+  const prevEnemyCountRef = useRef(0);
 
+  // Track game state changes for audio
+  useEffect(() => {
+    // Life lost sound
+    if (gameState.lives < prevLivesRef.current) {
+      audioManager.playLifeLost();
+    }
+    prevLivesRef.current = gameState.lives;
+
+    // Enemy death sound
+    if (gameState.enemies.length < prevEnemyCountRef.current && prevEnemyCountRef.current > 0) {
+      audioManager.playEnemyDeath();
+    }
+    prevEnemyCountRef.current = gameState.enemies.length;
+
+    // Victory/Defeat sounds
+    if (gameState.gameStatus === 'victory') {
+      audioManager.playVictory();
+      audioManager.stopMusic();
+    } else if (gameState.gameStatus === 'defeat') {
+      audioManager.playDefeat();
+      audioManager.stopMusic();
+    }
+  }, [gameState.lives, gameState.enemies.length, gameState.gameStatus]);
   const gameLoop = useCallback(
     (deltaTime: number) => {
       setGameState((prev) => {
@@ -227,6 +259,8 @@ export const TowerDefenseGame: React.FC = () => {
           // Recalculate paths for existing enemies
           const updatedEnemies = recalculateEnemyPaths(prev.enemies, newGrid, prev.endCell, show8DirectionPath);
 
+          audioManager.playTowerPlace();
+
           return {
             ...prev,
             grid: newGrid,
@@ -284,7 +318,7 @@ export const TowerDefenseGame: React.FC = () => {
 
   const handleUpgrade = useCallback(() => {
     setGameState((prev) => {
-      if (!prev.selectedTower || prev.selectedTower.level >= 3) return prev;
+      if (!prev.selectedTower || prev.selectedTower.level >= UPGRADE_CONFIG.maxLevel) return prev;
 
       const upgradeCost = getUpgradeCost(prev.selectedTower);
       if (prev.gold < upgradeCost) return prev;
@@ -296,6 +330,8 @@ export const TowerDefenseGame: React.FC = () => {
 
       const newGrid = prev.grid.map((row) => row.map((c) => ({ ...c })));
       newGrid[updatedTower.gridY][updatedTower.gridX].tower = updatedTower;
+
+      audioManager.playTowerUpgrade();
 
       return {
         ...prev,
@@ -321,6 +357,8 @@ export const TowerDefenseGame: React.FC = () => {
       // Recalculate paths for existing enemies
       const updatedEnemies = recalculateEnemyPaths(prev.enemies, newGrid, prev.endCell, show8DirectionPath);
 
+      audioManager.playTowerSell();
+
       return {
         ...prev,
         towers: prev.towers.filter((t) => t.id !== tower.id),
@@ -339,6 +377,9 @@ export const TowerDefenseGame: React.FC = () => {
       const newWave = prev.wave + 1;
       const enemies = getWaveEnemies(newWave);
       waveEnemiesRef.current = enemies;
+
+      audioManager.playWaveStart();
+      audioManager.startMusic();
 
       return {
         ...prev,
@@ -367,6 +408,9 @@ export const TowerDefenseGame: React.FC = () => {
     setGameState(createInitialState());
     waveEnemiesRef.current = [];
     towerIdCounter = 0;
+    audioManager.stopMusic();
+    prevLivesRef.current = STARTING_LIVES;
+    prevEnemyCountRef.current = 0;
   }, []);
 
   const handleTogglePathfinding = useCallback(() => {
@@ -377,7 +421,13 @@ export const TowerDefenseGame: React.FC = () => {
       showPathfinding: !show8DirectionPath,
       enemies: recalculateEnemyPaths(prev.enemies, prev.grid, prev.endCell, !show8DirectionPath),
     }));
+    audioManager.playClick();
   }, [show8DirectionPath]);
+
+  const handleToggleShowPath = useCallback(() => {
+    setShowEnemyPath((prev) => !prev);
+    audioManager.playClick();
+  }, []);
 
   const gridPixelSize = GRID_CONFIG.size * CELL_SIZE;
 
@@ -399,16 +449,19 @@ export const TowerDefenseGame: React.FC = () => {
               gameStatus={gameState.gameStatus}
               waveInfo={gameState.waveInfo}
               show8Direction={show8DirectionPath}
+              showEnemyPath={showEnemyPath}
               onStartWave={handleStartWave}
               onPause={handlePause}
               onNewGame={handleNewGame}
               onTogglePathfinding={handleTogglePathfinding}
+              onToggleShowPath={handleToggleShowPath}
             />
             <TowerShop
               gold={gameState.gold}
               selectedTowerType={gameState.selectedTowerType}
               onSelectTower={handleSelectTowerType}
             />
+            <AudioControls />
           </div>
 
           {/* Game canvas */}
@@ -428,6 +481,7 @@ export const TowerDefenseGame: React.FC = () => {
                 onCellHover={handleCellHover}
                 onCellLeave={handleCellLeave}
               />
+              <PathVisualizer enemies={gameState.enemies} showPath={showEnemyPath} />
               <TowerRenderer
                 towers={gameState.towers}
                 selectedTower={gameState.selectedTower}

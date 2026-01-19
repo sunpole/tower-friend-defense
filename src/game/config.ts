@@ -122,36 +122,36 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
   simple: {
     name: 'Простой',
     description: 'Стандартный враг со средними характеристиками',
-    hp: 100,
-    speed: 10,
+    hp: 150,
+    speed: 45,
     reward: 10,
     color: '#ef4444',
   },
   fat: {
     name: 'Жирный',
     description: 'Медленный, но очень живучий танк',
-    hp: 400,
-    speed: 2,
-    reward: 30,
+    hp: 600,
+    speed: 25,
+    reward: 35,
     color: '#7c3aed',
   },
   thin: {
     name: 'Худой',
     description: 'Очень быстрый, но хрупкий враг',
-    hp: 20,
-    speed: 40,
-    reward: 5,
+    hp: 50,
+    speed: 90,
+    reward: 8,
     color: '#22c55e',
   },
   double: {
     name: 'Двойка',
-    description: 'При смерти создает еще одного такого же врага',
-    hp: 120,
-    speed: 5,
-    reward: 15,
+    description: 'При смерти создает двух меньших врагов',
+    hp: 200,
+    speed: 35,
+    reward: 20,
     color: '#f59e0b',
-    spawnOnDeath: 'double',
-    spawnCount: 1,
+    spawnOnDeath: 'simple',
+    spawnCount: 2,
   },
 };
 
@@ -196,51 +196,55 @@ export interface TowerConfig {
 export const TOWER_CONFIGS: Record<TowerType, TowerConfig> = {
   sniper: {
     name: 'Снайпер',
-    description: 'Дальнобойная башня с высоким уроном, но медленной перезарядкой',
-    damage: 12,
-    range: 300,
-    fireRate: 2, // 0.5 sec reload
-    projectileSpeed: 600,
-    cost: 50,
+    description: 'Дальнобойная башня с высоким уроном и критическими ударами',
+    damage: 45,
+    range: 280,
+    fireRate: 0.8,
+    projectileSpeed: 800,
+    cost: 80,
     color: '#3b82f6',
     projectileType: 'bullet',
     icon: '🎯',
+    /** Специальная механика: шанс крита 25%, урон x3 */
   },
   knight: {
     name: 'Рыцарь',
-    description: 'Ближний бой с высоким уроном, но малой дальностью',
-    damage: 20,
-    range: 100,
-    fireRate: 1.33, // 0.75 sec reload
-    projectileSpeed: 300,
-    cost: 40,
+    description: 'Ближний бой с оглушением врагов',
+    damage: 35,
+    range: 90,
+    fireRate: 1.5,
+    projectileSpeed: 400,
+    cost: 50,
     color: '#8b5cf6',
     projectileType: 'bullet',
     icon: '⚔️',
+    /** Специальная механика: замедляет врагов на 20% на 1 сек */
   },
   laser: {
     name: 'Лазер',
-    description: 'Непрерывный луч с низким уроном, но высокой скоростью атаки',
-    damage: 5,
-    range: 200,
-    fireRate: 10, // 0.1 sec reload (fixed from 100)
-    projectileSpeed: 1000,
-    cost: 80,
+    description: 'Непрерывный луч, наносящий урон со временем',
+    damage: 8,
+    range: 180,
+    fireRate: 8,
+    projectileSpeed: 9999,
+    cost: 100,
     color: '#ef4444',
     projectileType: 'line',
     icon: '⚡',
+    /** Специальная механика: урон увеличивается на 5% за каждый тик */
   },
   fountain: {
     name: 'Фонтан',
-    description: 'Волна урона по области вокруг башни',
-    damage: 10,
-    range: 80,
-    fireRate: 2.5, // 0.4 sec reload
-    projectileSpeed: 200,
-    cost: 60,
+    description: 'Волна урона по области, замедляет всех врагов',
+    damage: 20,
+    range: 100,
+    fireRate: 1.2,
+    projectileSpeed: 300,
+    cost: 70,
     color: '#06b6d4',
     projectileType: 'aoe',
     icon: '💧',
+    /** Специальная механика: замедляет всех в области на 30% */
   },
 };
 
@@ -249,25 +253,25 @@ export const TOWER_CONFIGS: Record<TowerType, TowerConfig> = {
 // ============================================================
 export const UPGRADE_CONFIG = {
   /** Максимальный уровень башни */
-  maxLevel: 3,
+  maxLevel: 5,
   /** Множитель урона за уровень */
-  damageMultiplier: 1.9,
+  damageMultiplier: 1.6,
   /** Множитель дальности за уровень */
-  rangeMultiplier: 1.25,
+  rangeMultiplier: 1.15,
   /** Множитель скорострельности за уровень */
-  fireRateMultiplier: 1.2,
+  fireRateMultiplier: 1.25,
   /** 
    * Функция расчета стоимости улучшения
-   * По умолчанию: базовая_стоимость * уровень * 0.75
+   * Прогрессивная стоимость: каждый уровень дороже
    */
   getUpgradeCost: (baseCost: number, currentLevel: number): number => {
-    return Math.round(baseCost * currentLevel * 0.75);
+    return Math.round(baseCost * Math.pow(1.5, currentLevel - 1));
   },
   /** 
    * Функция расчета стоимости продажи
-   * По умолчанию: 60% от вложенных средств
+   * 70% от вложенных средств
    */
-  getSellValueMultiplier: 0.6,
+  getSellValueMultiplier: 0.7,
 };
 
 // ============================================================
@@ -311,13 +315,13 @@ export function generateWaveEnemies(wave: number): { type: EnemyType; isBoss: bo
 // ============================================================
 export const VISUAL_CONFIG = {
   /** Продолжительность анимации лазера (секунды) */
-  laserDuration: 0.15,
+  laserDuration: 0.12,
   /** Ширина линии лазера */
-  laserWidth: 3,
+  laserWidth: 4,
   /** Размер снаряда */
-  bulletSize: 4,
-  /** Показывать путь врагов */
-  showEnemyPath: false,
+  bulletSize: 5,
+  /** Показывать путь врагов по умолчанию */
+  showEnemyPath: true,
 };
 
 // ============================================================
