@@ -33,9 +33,10 @@ export const TowerRenderer: React.FC<TowerRendererProps> = ({
                 stroke="rgba(255, 255, 255, 0.3)"
                 strokeWidth={2}
                 strokeDasharray="5,5"
+                style={{ pointerEvents: 'none' }}
               />
             )}
-            
+
             {/* Tower body */}
             <rect
               x={tower.x - size / 2}

@@ -8,9 +8,9 @@ import {
   STARTING_LIVES,
   WaveInfo,
 } from '@/game/types';
-import { 
-  GRID_CONFIG, 
-  TOWER_CONFIGS, 
+import {
+  GRID_CONFIG,
+  TOWER_CONFIGS,
   WAVE_CONFIG,
   PATHFINDING_CONFIG,
   VISUAL_CONFIG,
@@ -18,7 +18,7 @@ import {
   TowerType,
   EnemyType,
 } from '@/game/config';
-import { findPath, canPlaceTower } from '@/game/pathfinding';
+import { canPlaceTower } from '@/game/pathfinding';
 import {
   createEnemy,
   updateEnemies,
@@ -33,6 +33,7 @@ import {
 } from '@/game/gameLogic';
 import { useGameLoop } from '@/game/useGameLoop';
 import { audioManager } from '@/game/audioManager';
+import { Button } from '@/components/ui/button';
 import { GameGrid } from './game/GameGrid';
 import { TowerRenderer } from './game/TowerRenderer';
 import { EnemyRenderer } from './game/EnemyRenderer';
@@ -86,6 +87,7 @@ export const TowerDefenseGame: React.FC = () => {
   const [canPlace, setCanPlace] = useState(false);
   const [show8DirectionPath, setShow8DirectionPath] = useState(PATHFINDING_CONFIG.use8Directions);
   const [showEnemyPath, setShowEnemyPath] = useState(VISUAL_CONFIG.showEnemyPath);
+  const [autoWave, setAutoWave] = useState(false);
   const waveEnemiesRef = useRef<{ type: EnemyType; isBoss: boolean }[]>([]);
   const prevLivesRef = useRef(STARTING_LIVES);
   const prevWaveRef = useRef(0);
@@ -133,7 +135,8 @@ export const TowerDefenseGame: React.FC = () => {
                 newState.grid,
                 newState.endCell,
                 enemyConfig.isBoss,
-                show8DirectionPath
+                true,
+                newState.wave
               );
               if (enemy) {
                 newState.enemies = [...newState.enemies, enemy];
@@ -158,9 +161,21 @@ export const TowerDefenseGame: React.FC = () => {
           newState.enemies.length === 0
         ) {
           newState.waveInProgress = false;
-          
-          if (newState.wave >= WAVE_CONFIG.totalWaves) {
-            newState.gameStatus = 'victory';
+
+          // Auto-start next wave if enabled
+          if (autoWave) {
+            const nextWave = newState.wave + 1;
+            const enemies = getWaveEnemies(nextWave);
+            waveEnemiesRef.current = enemies;
+
+            audioManager.playWaveStart();
+
+            newState.wave = nextWave;
+            newState.waveInProgress = true;
+            newState.enemiesSpawned = 0;
+            newState.enemiesToSpawn = enemies.length;
+            newState.spawnTimer = 0;
+            newState.waveInfo = { total: enemies.length, spawned: 0, alive: 0 };
           }
         }
 
@@ -448,13 +463,16 @@ export const TowerDefenseGame: React.FC = () => {
               waveInProgress={gameState.waveInProgress}
               gameStatus={gameState.gameStatus}
               waveInfo={gameState.waveInfo}
-              show8Direction={show8DirectionPath}
               showEnemyPath={showEnemyPath}
+              autoWave={autoWave}
               onStartWave={handleStartWave}
               onPause={handlePause}
               onNewGame={handleNewGame}
-              onTogglePathfinding={handleTogglePathfinding}
               onToggleShowPath={handleToggleShowPath}
+              onToggleAutoWave={() => {
+                setAutoWave((v) => !v);
+                audioManager.playClick();
+              }}
             />
             <TowerShop
               gold={gameState.gold}
