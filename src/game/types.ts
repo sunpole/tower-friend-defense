@@ -40,6 +40,7 @@ export interface Enemy {
   pathIndex: number;
   reward: number;
   spawnOnDeath?: EnemyType;
+  spawnCount?: number;
 }
 
 export interface Tower {

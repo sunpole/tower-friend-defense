@@ -1,5 +1,5 @@
 import React from 'react';
-import { Position, Enemy, CELL_SIZE } from '@/game/types';
+import { Enemy } from '@/game/types';
 
 interface PathVisualizerProps {
   enemies: Enemy[];
@@ -10,32 +10,32 @@ export const PathVisualizer: React.FC<PathVisualizerProps> = ({ enemies, showPat
   if (!showPath) return null;
 
   return (
-    <g className="path-visualizer">
+    <g className="path-visualizer" style={{ pointerEvents: 'none' }}>
       {enemies.map((enemy) => {
         if (!enemy.path || enemy.path.length === 0) return null;
 
-        // Create path points from current position to end
-        const pathPoints = enemy.path.slice(enemy.pathIndex);
-        if (pathPoints.length < 2) return null;
+        // enemy.path already contains PIXEL coordinates.
+        const remaining = enemy.path.slice(enemy.pathIndex);
+        if (remaining.length < 1) return null;
 
-        // Generate path string for SVG
-        const pathString = pathPoints
-          .map((point, index) => {
-            const x = point.x * CELL_SIZE + CELL_SIZE / 2;
-            const y = point.y * CELL_SIZE + CELL_SIZE / 2;
-            return `${index === 0 ? 'M' : 'L'} ${x} ${y}`;
-          })
+        const points = [{ x: enemy.x, y: enemy.y }, ...remaining];
+        if (points.length < 2) return null;
+
+        const pathString = points
+          .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
           .join(' ');
 
-        // Get enemy color for path
-        const pathColor = enemy.type === 'simple' ? '#ef4444' :
-                          enemy.type === 'fat' ? '#7c3aed' :
-                          enemy.type === 'thin' ? '#22c55e' :
-                          '#f59e0b';
+        const pathColor =
+          enemy.type === 'simple'
+            ? '#ef4444'
+            : enemy.type === 'fat'
+              ? '#7c3aed'
+              : enemy.type === 'thin'
+                ? '#22c55e'
+                : '#f59e0b';
 
         return (
           <g key={`path-${enemy.id}`}>
-            {/* Path background (glow effect) */}
             <path
               d={pathString}
               fill="none"
@@ -45,7 +45,6 @@ export const PathVisualizer: React.FC<PathVisualizerProps> = ({ enemies, showPat
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            {/* Main path line */}
             <path
               d={pathString}
               fill="none"
@@ -57,12 +56,11 @@ export const PathVisualizer: React.FC<PathVisualizerProps> = ({ enemies, showPat
               strokeDasharray="8 4"
               className="animate-pulse"
             />
-            {/* Path waypoints */}
-            {pathPoints.slice(1).map((point, index) => (
+            {points.slice(1).map((p, index) => (
               <circle
                 key={`waypoint-${enemy.id}-${index}`}
-                cx={point.x * CELL_SIZE + CELL_SIZE / 2}
-                cy={point.y * CELL_SIZE + CELL_SIZE / 2}
+                cx={p.x}
+                cy={p.y}
                 r={3}
                 fill={pathColor}
                 fillOpacity={0.4}

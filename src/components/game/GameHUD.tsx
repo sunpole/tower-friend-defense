@@ -12,13 +12,13 @@ interface GameHUDProps {
   waveInProgress: boolean;
   gameStatus: 'menu' | 'playing' | 'paused' | 'victory' | 'defeat';
   waveInfo: WaveInfo;
-  show8Direction: boolean;
   showEnemyPath: boolean;
+  autoWave: boolean;
   onStartWave: () => void;
   onPause: () => void;
   onNewGame: () => void;
-  onTogglePathfinding: () => void;
   onToggleShowPath: () => void;
+  onToggleAutoWave: () => void;
 }
 
 export const GameHUD: React.FC<GameHUDProps> = ({
@@ -28,19 +28,23 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   waveInProgress,
   gameStatus,
   waveInfo,
-  show8Direction,
   showEnemyPath,
+  autoWave,
   onStartWave,
   onPause,
   onNewGame,
-  onTogglePathfinding,
   onToggleShowPath,
+  onToggleAutoWave,
 }) => {
+  const wavesLabel = WAVE_CONFIG.totalWaves === Infinity ? '∞' : String(WAVE_CONFIG.totalWaves);
+
   return (
     <div className="bg-card p-4 rounded-lg border border-border">
       <div className="grid grid-cols-3 gap-4 mb-4">
         <div className="text-center">
-          <div className="text-2xl font-bold text-foreground">{wave}/{WAVE_CONFIG.totalWaves}</div>
+          <div className="text-2xl font-bold text-foreground">
+            {wave}/{wavesLabel}
+          </div>
           <div className="text-xs text-muted-foreground">Волна</div>
         </div>
         <div className="text-center">
@@ -56,12 +60,8 @@ export const GameHUD: React.FC<GameHUDProps> = ({
       {/* Wave Info */}
       {waveInProgress && (
         <div className="mb-4 p-2 bg-muted rounded text-center">
-          <div className="text-sm font-mono">
-            👾 {waveInfo.total}/{waveInfo.spawned}/{waveInfo.alive}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            всего/появилось/живо
-          </div>
+          <div className="text-sm font-mono">👾 {waveInfo.total}/{waveInfo.spawned}/{waveInfo.alive}</div>
+          <div className="text-xs text-muted-foreground">всего/появилось/живо</div>
         </div>
       )}
 
@@ -71,27 +71,19 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           {showEnemyPath ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
           Путь врагов
         </span>
-        <Switch
-          checked={showEnemyPath}
-          onCheckedChange={onToggleShowPath}
-        />
+        <Switch checked={showEnemyPath} onCheckedChange={onToggleShowPath} />
       </div>
 
-      {/* Pathfinding Toggle */}
+      {/* Auto wave */}
       <div className="mb-4 flex items-center justify-between p-2 bg-muted rounded">
-        <span className="text-xs text-muted-foreground">
-          Поиск: {show8Direction ? '8 сторон' : '4 стороны'}
-        </span>
-        <Switch
-          checked={show8Direction}
-          onCheckedChange={onTogglePathfinding}
-        />
+        <span className="text-xs text-muted-foreground">Автоволна</span>
+        <Switch checked={autoWave} onCheckedChange={onToggleAutoWave} />
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        {gameStatus === 'playing' && !waveInProgress && wave < WAVE_CONFIG.totalWaves && (
+        {gameStatus === 'playing' && !waveInProgress && (
           <Button className="flex-1" onClick={onStartWave}>
-            🚀 Волна {wave + 1}
+            🚀 Следующая волна
           </Button>
         )}
         {gameStatus === 'playing' && waveInProgress && (
@@ -114,13 +106,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         </Button>
       </div>
 
-      {gameStatus === 'victory' && (
-        <div className="mt-4 p-4 bg-green-500/20 rounded-lg text-center">
-          <div className="text-2xl font-bold text-green-500">🎉 ПОБЕДА!</div>
-          <div className="text-sm text-muted-foreground">Все волны пройдены!</div>
-        </div>
-      )}
-
       {gameStatus === 'defeat' && (
         <div className="mt-4 p-4 bg-red-500/20 rounded-lg text-center">
           <div className="text-2xl font-bold text-red-500">💀 ПОРАЖЕНИЕ</div>
@@ -130,3 +115,4 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     </div>
   );
 };
+

@@ -41,15 +41,21 @@ export function createEnemy(
   grid: any[][],
   endCell: Position,
   isBoss: boolean = false,
-  use8Directions: boolean = true
+  use8Directions: boolean = true,
+  wave: number = 1
 ): Enemy | null {
   const config = ENEMY_CONFIGS[type];
   const path = findPath(grid, startCell, endCell, use8Directions);
-  
+
   if (!path) return null;
 
-  const hpMultiplier = isBoss ? BOSS_CONFIG.hpMultiplier : 1;
-  const speedMultiplier = isBoss ? BOSS_CONFIG.speedMultiplier : 1;
+  // Difficulty scaling: after wave 20 enemies ramp harder
+  const over20 = Math.max(0, wave - 20);
+  const hpScale = 1 + over20 * 0.08;
+  const speedScale = 1 + over20 * 0.04;
+
+  const hpMultiplier = (isBoss ? BOSS_CONFIG.hpMultiplier : 1) * hpScale;
+  const speedMultiplier = (isBoss ? BOSS_CONFIG.speedMultiplier : 1) * speedScale;
   const rewardMultiplier = isBoss ? BOSS_CONFIG.rewardMultiplier : 1;
 
   return {
@@ -63,7 +69,8 @@ export function createEnemy(
     path: path.map((p) => ({ x: gridToPixel(p.x), y: gridToPixel(p.y) })),
     pathIndex: 0,
     reward: config.reward * rewardMultiplier,
-    spawnOnDeath: type === 'double' && !isBoss ? 'double' : undefined,
+    spawnOnDeath: config.spawnOnDeath,
+    spawnCount: config.spawnCount,
   };
 }
 
@@ -107,6 +114,21 @@ export function updateEnemies(
   return { updatedEnemies, reachedEnd };
 }
 
+function buildRecalculatedPixelPath(
+  enemy: Enemy,
+  gridPath: Position[]
+): { path: Position[]; pathIndex: number } {
+  const pixelPath = gridPath.map((p) => ({ x: gridToPixel(p.x), y: gridToPixel(p.y) }));
+
+  // Prevent visible "backtracking" to the center of the current cell:
+  // start the new path from the enemy's current pixel position, then continue.
+  const resultPath = [{ x: enemy.x, y: enemy.y }, ...pixelPath.slice(1)];
+
+  // Always move towards index 1 next (unless there is no next point)
+  const nextIndex = resultPath.length > 1 ? 1 : 0;
+  return { path: resultPath, pathIndex: nextIndex };
+}
+
 export function recalculateEnemyPaths(
   enemies: Enemy[],
   grid: any[][],
@@ -116,15 +138,18 @@ export function recalculateEnemyPaths(
   return enemies.map((enemy) => {
     const currentGridX = pixelToGrid(enemy.x);
     const currentGridY = pixelToGrid(enemy.y);
-    const path = findPath(grid, { x: currentGridX, y: currentGridY }, endCell, use8Directions);
-    
-    if (path) {
+
+    const gridPath = findPath(grid, { x: currentGridX, y: currentGridY }, endCell, use8Directions);
+
+    if (gridPath && gridPath.length > 0) {
+      const { path, pathIndex } = buildRecalculatedPixelPath(enemy, gridPath);
       return {
         ...enemy,
-        path: path.map((p) => ({ x: gridToPixel(p.x), y: gridToPixel(p.y) })),
-        pathIndex: 0,
+        path,
+        pathIndex,
       };
     }
+
     return enemy;
   });
 }
@@ -280,17 +305,26 @@ export function updateProjectiles(
   for (const enemy of updatedEnemies) {
     if (enemy.hp <= 0) {
       goldEarned += enemy.reward;
-      
-      // Spawn new enemy on death (for double type)
+
+      // Spawn enemies on death (e.g. "double")
       if (enemy.spawnOnDeath && !enemy.id.includes('_spawned')) {
-        const config = ENEMY_CONFIGS[enemy.spawnOnDeath];
-        newEnemies.push({
-          ...enemy,
-          id: enemy.id + '_spawned',
-          hp: config.hp,
-          maxHp: config.hp,
-          spawnOnDeath: undefined,
-        });
+        const spawnType = enemy.spawnOnDeath;
+        const spawnConfig = ENEMY_CONFIGS[spawnType];
+        const count = Math.max(1, enemy.spawnCount ?? spawnConfig.spawnCount ?? 1);
+
+        for (let i = 0; i < count; i++) {
+          newEnemies.push({
+            ...enemy,
+            id: `${enemy.id}_spawned_${i}`,
+            type: spawnType,
+            hp: spawnConfig.hp,
+            maxHp: spawnConfig.hp,
+            speed: spawnConfig.speed,
+            reward: spawnConfig.reward,
+            spawnOnDeath: spawnConfig.spawnOnDeath,
+            spawnCount: spawnConfig.spawnCount,
+          });
+        }
       }
     } else {
       aliveEnemies.push(enemy);
