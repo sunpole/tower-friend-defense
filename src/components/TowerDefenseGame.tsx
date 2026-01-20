@@ -12,7 +12,6 @@ import {
   GRID_CONFIG,
   TOWER_CONFIGS,
   WAVE_CONFIG,
-  PATHFINDING_CONFIG,
   VISUAL_CONFIG,
   UPGRADE_CONFIG,
   TowerType,
@@ -75,7 +74,7 @@ const createInitialState = (): GameState => ({
   spawnTimer: 0,
   startCell: GRID_CONFIG.startCell,
   endCell: GRID_CONFIG.endCell,
-  showPathfinding: PATHFINDING_CONFIG.use8Directions,
+  showPathfinding: true,
   waveInfo: createInitialWaveInfo(),
 });
 
@@ -85,29 +84,24 @@ export const TowerDefenseGame: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(createInitialState());
   const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
   const [canPlace, setCanPlace] = useState(false);
-  const [show8DirectionPath, setShow8DirectionPath] = useState(PATHFINDING_CONFIG.use8Directions);
   const [showEnemyPath, setShowEnemyPath] = useState(VISUAL_CONFIG.showEnemyPath);
   const [autoWave, setAutoWave] = useState(false);
   const waveEnemiesRef = useRef<{ type: EnemyType; isBoss: boolean }[]>([]);
   const prevLivesRef = useRef(STARTING_LIVES);
-  const prevWaveRef = useRef(0);
   const prevEnemyCountRef = useRef(0);
 
   // Track game state changes for audio
   useEffect(() => {
-    // Life lost sound
     if (gameState.lives < prevLivesRef.current) {
       audioManager.playLifeLost();
     }
     prevLivesRef.current = gameState.lives;
 
-    // Enemy death sound
     if (gameState.enemies.length < prevEnemyCountRef.current && prevEnemyCountRef.current > 0) {
       audioManager.playEnemyDeath();
     }
     prevEnemyCountRef.current = gameState.enemies.length;
 
-    // Victory/Defeat sounds
     if (gameState.gameStatus === 'victory') {
       audioManager.playVictory();
       audioManager.stopMusic();
@@ -116,6 +110,7 @@ export const TowerDefenseGame: React.FC = () => {
       audioManager.stopMusic();
     }
   }, [gameState.lives, gameState.enemies.length, gameState.gameStatus]);
+
   const gameLoop = useCallback(
     (deltaTime: number) => {
       setGameState((prev) => {
@@ -135,7 +130,6 @@ export const TowerDefenseGame: React.FC = () => {
                 newState.grid,
                 newState.endCell,
                 enemyConfig.isBoss,
-                true,
                 newState.wave
               );
               if (enemy) {
@@ -161,6 +155,7 @@ export const TowerDefenseGame: React.FC = () => {
           newState.enemies.length === 0
         ) {
           newState.waveInProgress = false;
+          audioManager.playWaveComplete();
 
           // Auto-start next wave if enabled
           if (autoWave) {
@@ -222,7 +217,7 @@ export const TowerDefenseGame: React.FC = () => {
         return newState;
       });
     },
-    [show8DirectionPath]
+    [autoWave]
   );
 
   useGameLoop(gameLoop, gameState.gameStatus === 'playing');
@@ -248,7 +243,7 @@ export const TowerDefenseGame: React.FC = () => {
           const config = TOWER_CONFIGS[prev.selectedTowerType];
           if (prev.gold < config.cost) return prev;
 
-          if (!canPlaceTower(prev.grid, x, y, prev.startCell, prev.endCell, show8DirectionPath)) {
+          if (!canPlaceTower(prev.grid, x, y, prev.startCell, prev.endCell, true)) {
             return prev;
           }
 
@@ -272,25 +267,26 @@ export const TowerDefenseGame: React.FC = () => {
           newGrid[y][x].tower = newTower;
 
           // Recalculate paths for existing enemies
-          const updatedEnemies = recalculateEnemyPaths(prev.enemies, newGrid, prev.endCell, show8DirectionPath);
+          const updatedEnemies = recalculateEnemyPaths(prev.enemies, newGrid, prev.endCell);
 
           audioManager.playTowerPlace();
 
+          // KEEP tower in hand after placement!
           return {
             ...prev,
             grid: newGrid,
             towers: [...prev.towers, newTower],
             enemies: updatedEnemies,
             gold: prev.gold - config.cost,
-            selectedTowerType: null,
+            // selectedTowerType stays the same - tower remains in hand
           };
         }
 
-        // Deselect
+        // Deselect tower info
         return { ...prev, selectedTower: null };
       });
     },
-    [show8DirectionPath]
+    []
   );
 
   const handleCellHover = useCallback(
@@ -303,12 +299,12 @@ export const TowerDefenseGame: React.FC = () => {
           y,
           gameState.startCell,
           gameState.endCell,
-          show8DirectionPath
+          true
         );
         setCanPlace(canPlaceResult);
       }
     },
-    [gameState.selectedTowerType, gameState.grid, gameState.startCell, gameState.endCell, show8DirectionPath]
+    [gameState.selectedTowerType, gameState.grid, gameState.startCell, gameState.endCell]
   );
 
   const handleCellLeave = useCallback(() => {
@@ -321,6 +317,16 @@ export const TowerDefenseGame: React.FC = () => {
       selectedTowerType: type,
       selectedTower: null,
     }));
+    audioManager.playClick();
+  }, []);
+
+  // Clear hand (deselect tower type)
+  const handleClearHand = useCallback(() => {
+    setGameState((prev) => ({
+      ...prev,
+      selectedTowerType: null,
+    }));
+    audioManager.playClick();
   }, []);
 
   const handleTowerClick = useCallback((tower: Tower) => {
@@ -370,7 +376,7 @@ export const TowerDefenseGame: React.FC = () => {
       newGrid[tower.gridY][tower.gridX].tower = null;
 
       // Recalculate paths for existing enemies
-      const updatedEnemies = recalculateEnemyPaths(prev.enemies, newGrid, prev.endCell, show8DirectionPath);
+      const updatedEnemies = recalculateEnemyPaths(prev.enemies, newGrid, prev.endCell);
 
       audioManager.playTowerSell();
 
@@ -383,11 +389,11 @@ export const TowerDefenseGame: React.FC = () => {
         selectedTower: null,
       };
     });
-  }, [show8DirectionPath]);
+  }, []);
 
   const handleStartWave = useCallback(() => {
     setGameState((prev) => {
-      if (prev.waveInProgress || prev.wave >= WAVE_CONFIG.totalWaves) return prev;
+      if (prev.waveInProgress) return prev;
 
       const newWave = prev.wave + 1;
       const enemies = getWaveEnemies(newWave);
@@ -428,29 +434,31 @@ export const TowerDefenseGame: React.FC = () => {
     prevEnemyCountRef.current = 0;
   }, []);
 
-  const handleTogglePathfinding = useCallback(() => {
-    setShow8DirectionPath((prev) => !prev);
-    // Recalculate paths for all enemies when toggle changes
-    setGameState((prev) => ({
-      ...prev,
-      showPathfinding: !show8DirectionPath,
-      enemies: recalculateEnemyPaths(prev.enemies, prev.grid, prev.endCell, !show8DirectionPath),
-    }));
-    audioManager.playClick();
-  }, [show8DirectionPath]);
-
   const handleToggleShowPath = useCallback(() => {
     setShowEnemyPath((prev) => !prev);
     audioManager.playClick();
   }, []);
 
+  // Handle click outside grid to clear hand
+  const handleSvgClick = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    // Check if click is directly on the SVG (not on a child element)
+    if (e.target === e.currentTarget) {
+      handleClearHand();
+    }
+  }, [handleClearHand]);
+
   const gridPixelSize = GRID_CONFIG.size * CELL_SIZE;
+
+  // Check if player can afford selected tower
+  const canAffordSelected = gameState.selectedTowerType
+    ? gameState.gold >= TOWER_CONFIGS[gameState.selectedTowerType].cost
+    : true;
 
   return (
     <div className="min-h-screen bg-background p-4">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold text-center text-foreground mb-4">
-          🏰 Tower Defense v2.0
+          🏰 Tower Defense v2.1
         </h1>
 
         <div className="flex flex-col lg:flex-row gap-4">
@@ -487,14 +495,26 @@ export const TowerDefenseGame: React.FC = () => {
             <svg
               width={gridPixelSize}
               height={gridPixelSize}
-              className="border-2 border-border rounded-lg bg-card"
+              className={`border-2 rounded-lg bg-card ${
+                gameState.selectedTowerType && !canAffordSelected
+                  ? 'border-destructive'
+                  : 'border-border'
+              }`}
+              style={{
+                cursor: gameState.selectedTowerType
+                  ? canAffordSelected
+                    ? 'crosshair'
+                    : 'not-allowed'
+                  : 'default',
+              }}
+              onClick={handleSvgClick}
             >
               <GameGrid
                 grid={gameState.grid}
                 startCell={gameState.startCell}
                 endCell={gameState.endCell}
                 hoveredCell={hoveredCell}
-                canPlace={canPlace && gameState.selectedTowerType !== null}
+                canPlace={canPlace && gameState.selectedTowerType !== null && canAffordSelected}
                 onCellClick={handleCellClick}
                 onCellHover={handleCellHover}
                 onCellLeave={handleCellLeave}

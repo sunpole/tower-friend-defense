@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * GAME CONFIGURATION v2.0
+ * GAME CONFIGURATION v2.1
  * ============================================================
  * 
  * Этот файл содержит всю конфигурацию игры Tower Defense.
@@ -9,6 +9,7 @@
  * ВЕРСИИ:
  * - v1.0: Базовая игра (4 типа врагов, 4 типа башен, 20 волн)
  * - v2.0: Расширенная конфигурация с поддержкой кастомизации
+ * - v2.1: Добавлены новые враги/башни, улучшенный UX
  * 
  * ============================================================
  */
@@ -16,7 +17,7 @@
 // ============================================================
 // GAME VERSION
 // ============================================================
-export const GAME_VERSION = '2.0';
+export const GAME_VERSION = '2.1';
 
 // ============================================================
 // GRID SETTINGS
@@ -36,7 +37,7 @@ export const GRID_CONFIG = {
 // PATHFINDING SETTINGS
 // ============================================================
 export const PATHFINDING_CONFIG = {
-  /** Использовать 8 направлений (true) или 4 направления (false) */
+  /** Всегда 8 направлений */
   use8Directions: true,
   /** Стоимость диагонального движения (обычно √2 ≈ 1.414) */
   diagonalCost: 1.414,
@@ -65,13 +66,12 @@ export const WAVE_CONFIG = {
   /** Базовое количество врагов на волне */
   baseEnemiesPerWave: 5,
   /** Задержка между спавном врагов (секунды) */
-  spawnInterval: 1,
+  spawnInterval: 0.8,
   /**
    * Функция для расчета количества врагов на волне
-   * По умолчанию: 5 + номер волны
    */
   getEnemiesCount: (wave: number): number => {
-    return WAVE_CONFIG.baseEnemiesPerWave + wave;
+    return WAVE_CONFIG.baseEnemiesPerWave + wave + Math.floor(wave / 5);
   },
 };
 
@@ -80,18 +80,18 @@ export const WAVE_CONFIG = {
 // ============================================================
 export const BOSS_CONFIG = {
   /** Множитель HP для босса */
-  hpMultiplier: 40,
-  /** Множитель скорости для босса (0.25 = на 75% медленнее) */
-  speedMultiplier: 0.25,
+  hpMultiplier: 50,
+  /** Множитель скорости для босса (0.3 = на 70% медленнее) */
+  speedMultiplier: 0.3,
   /** Множитель награды для босса */
-  rewardMultiplier: 20,
+  rewardMultiplier: 25,
 };
 
 // ============================================================
 // ENEMY TYPES
 // ============================================================
-/** Типы врагов - добавляйте новые типы здесь */
-export type EnemyType = 'simple' | 'fat' | 'thin' | 'double';
+/** Типы врагов */
+export type EnemyType = 'simple' | 'fat' | 'thin' | 'double' | 'ghost' | 'armored';
 
 export interface EnemyConfig {
   /** Название врага */
@@ -114,52 +114,65 @@ export interface EnemyConfig {
 
 /**
  * КОНФИГУРАЦИЯ ВРАГОВ
- * 
- * Добавляйте новых врагов в этот объект.
- * Не забудьте добавить тип в EnemyType выше.
  */
 export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
   simple: {
     name: 'Простой',
     description: 'Стандартный враг со средними характеристиками',
-    hp: 150,
-    speed: 45,
+    hp: 180,
+    speed: 50,
     reward: 10,
     color: '#ef4444',
   },
   fat: {
     name: 'Жирный',
     description: 'Медленный, но очень живучий танк',
-    hp: 600,
-    speed: 25,
-    reward: 35,
+    hp: 800,
+    speed: 28,
+    reward: 40,
     color: '#7c3aed',
   },
   thin: {
     name: 'Худой',
     description: 'Очень быстрый, но хрупкий враг',
-    hp: 50,
-    speed: 90,
+    hp: 60,
+    speed: 100,
     reward: 8,
     color: '#22c55e',
   },
   double: {
     name: 'Двойка',
     description: 'При смерти создает двух меньших врагов',
-    hp: 200,
-    speed: 35,
-    reward: 20,
+    hp: 250,
+    speed: 40,
+    reward: 25,
     color: '#f59e0b',
     spawnOnDeath: 'simple',
     spawnCount: 2,
+  },
+  ghost: {
+    name: 'Призрак',
+    description: 'Невидимый, появляется рядом с выходом',
+    hp: 120,
+    speed: 70,
+    reward: 15,
+    color: '#94a3b8',
+  },
+  armored: {
+    name: 'Бронированный',
+    description: 'Очень медленный, но невероятно крепкий',
+    hp: 1500,
+    speed: 20,
+    reward: 60,
+    color: '#475569',
   },
 };
 
 // ============================================================
 // TOWER TYPES
 // ============================================================
-/** Типы башен - добавляйте новые типы здесь */
-export type TowerType = 'sniper' | 'knight' | 'laser' | 'fountain';
+/** Типы башен */
+export type TowerType = 'sniper' | 'knight' | 'laser' | 'fountain' | 'cannon' | 'frost';
 
 /** Типы снарядов */
 export type ProjectileType = 'bullet' | 'line' | 'aoe';
@@ -189,62 +202,79 @@ export interface TowerConfig {
 
 /**
  * КОНФИГУРАЦИЯ БАШЕН
- * 
- * Добавляйте новые башни в этот объект.
- * Не забудьте добавить тип в TowerType выше.
  */
 export const TOWER_CONFIGS: Record<TowerType, TowerConfig> = {
   sniper: {
     name: 'Снайпер',
-    description: 'Дальнобойная башня с высоким уроном и критическими ударами',
-    damage: 45,
-    range: 280,
-    fireRate: 0.8,
-    projectileSpeed: 800,
+    description: 'Дальнобойная башня с высоким уроном',
+    damage: 55,
+    range: 300,
+    fireRate: 0.7,
+    projectileSpeed: 900,
     cost: 80,
     color: '#3b82f6',
     projectileType: 'bullet',
     icon: '🎯',
-    /** Специальная механика: шанс крита 25%, урон x3 */
   },
   knight: {
     name: 'Рыцарь',
-    description: 'Ближний бой с оглушением врагов',
-    damage: 35,
+    description: 'Ближний бой, быстрые атаки',
+    damage: 40,
     range: 90,
-    fireRate: 1.5,
-    projectileSpeed: 400,
+    fireRate: 1.8,
+    projectileSpeed: 500,
     cost: 50,
     color: '#8b5cf6',
     projectileType: 'bullet',
     icon: '⚔️',
-    /** Специальная механика: замедляет врагов на 20% на 1 сек */
   },
   laser: {
     name: 'Лазер',
-    description: 'Непрерывный луч, наносящий урон со временем',
-    damage: 8,
-    range: 180,
-    fireRate: 8,
+    description: 'Непрерывный луч, быстрый урон',
+    damage: 10,
+    range: 200,
+    fireRate: 10,
     projectileSpeed: 9999,
     cost: 100,
     color: '#ef4444',
     projectileType: 'line',
     icon: '⚡',
-    /** Специальная механика: урон увеличивается на 5% за каждый тик */
   },
   fountain: {
     name: 'Фонтан',
-    description: 'Волна урона по области, замедляет всех врагов',
-    damage: 20,
-    range: 100,
-    fireRate: 1.2,
-    projectileSpeed: 300,
+    description: 'Волна урона по области',
+    damage: 25,
+    range: 110,
+    fireRate: 1.4,
+    projectileSpeed: 350,
     cost: 70,
     color: '#06b6d4',
     projectileType: 'aoe',
     icon: '💧',
-    /** Специальная механика: замедляет всех в области на 30% */
+  },
+  cannon: {
+    name: 'Пушка',
+    description: 'Огромный урон, медленная атака',
+    damage: 150,
+    range: 180,
+    fireRate: 0.35,
+    projectileSpeed: 400,
+    cost: 120,
+    color: '#78350f',
+    projectileType: 'bullet',
+    icon: '💥',
+  },
+  frost: {
+    name: 'Мороз',
+    description: 'Замедляет врагов в области',
+    damage: 15,
+    range: 130,
+    fireRate: 0.8,
+    projectileSpeed: 250,
+    cost: 90,
+    color: '#67e8f9',
+    projectileType: 'aoe',
+    icon: '❄️',
   },
 };
 
@@ -255,21 +285,19 @@ export const UPGRADE_CONFIG = {
   /** Максимальный уровень башни */
   maxLevel: 5,
   /** Множитель урона за уровень */
-  damageMultiplier: 1.6,
+  damageMultiplier: 1.5,
   /** Множитель дальности за уровень */
-  rangeMultiplier: 1.15,
+  rangeMultiplier: 1.12,
   /** Множитель скорострельности за уровень */
-  fireRateMultiplier: 1.25,
+  fireRateMultiplier: 1.2,
   /** 
    * Функция расчета стоимости улучшения
-   * Прогрессивная стоимость: каждый уровень дороже
    */
   getUpgradeCost: (baseCost: number, currentLevel: number): number => {
-    return Math.round(baseCost * Math.pow(1.5, currentLevel - 1));
+    return Math.round(baseCost * Math.pow(1.4, currentLevel - 1));
   },
   /** 
-   * Функция расчета стоимости продажи
-   * 70% от вложенных средств
+   * Множитель стоимости продажи (70%)
    */
   getSellValueMultiplier: 0.7,
 };
@@ -277,34 +305,27 @@ export const UPGRADE_CONFIG = {
 // ============================================================
 // WAVE COMPOSITION
 // ============================================================
-/**
- * Настройка состава волн
- * 
- * Вы можете определить точный состав каждой волны или использовать
- * функцию генерации для автоматического создания.
- */
 export interface WaveDefinition {
-  /** Список типов врагов для волны */
   enemies: EnemyType[];
-  /** Индексы боссов (какой по счету враг будет боссом) */
   bossIndices?: number[];
 }
 
 /**
- * Генератор состава волны по умолчанию
- * Используется, если для волны не определен точный состав
+ * Генератор состава волны
  */
 export function generateWaveEnemies(wave: number): { type: EnemyType; isBoss: boolean }[] {
   const enemies: { type: EnemyType; isBoss: boolean }[] = [];
   const count = WAVE_CONFIG.getEnemiesCount(wave);
   const isBossWave = wave % WAVE_CONFIG.bossWaveInterval === 0;
 
-  const types: EnemyType[] = Object.keys(ENEMY_CONFIGS) as EnemyType[];
+  const allTypes: EnemyType[] = Object.keys(ENEMY_CONFIGS) as EnemyType[];
+  // Unlock enemy types gradually
+  const unlockedTypes = allTypes.slice(0, Math.min(2 + Math.floor(wave / 3), allTypes.length));
   
   for (let i = 0; i < count; i++) {
-    const isBoss = isBossWave && i === count - 1; // Последний враг на волне боссов - босс
-    const typeIndex = Math.floor(Math.random() * Math.min(wave, types.length));
-    enemies.push({ type: types[typeIndex], isBoss });
+    const isBoss = isBossWave && i === count - 1;
+    const typeIndex = Math.floor(Math.random() * unlockedTypes.length);
+    enemies.push({ type: unlockedTypes[typeIndex], isBoss });
   }
 
   return enemies;
@@ -315,13 +336,13 @@ export function generateWaveEnemies(wave: number): { type: EnemyType; isBoss: bo
 // ============================================================
 export const VISUAL_CONFIG = {
   /** Продолжительность анимации лазера (секунды) */
-  laserDuration: 0.12,
+  laserDuration: 0.1,
   /** Ширина линии лазера */
   laserWidth: 4,
   /** Размер снаряда */
-  bulletSize: 5,
+  bulletSize: 6,
   /** Показывать путь врагов по умолчанию */
-  showEnemyPath: true,
+  showEnemyPath: false,
 };
 
 // ============================================================
