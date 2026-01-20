@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   GameState,
   GridCell,
@@ -278,7 +278,6 @@ export const TowerDefenseGame: React.FC = () => {
             towers: [...prev.towers, newTower],
             enemies: updatedEnemies,
             gold: prev.gold - config.cost,
-            // selectedTowerType stays the same - tower remains in hand
           };
         }
 
@@ -440,8 +439,7 @@ export const TowerDefenseGame: React.FC = () => {
   }, []);
 
   // Handle click outside grid to clear hand
-  const handleSvgClick = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
-    // Check if click is directly on the SVG (not on a child element)
+  const handleSvgClick = useCallback((e: React.MouseEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>) => {
     if (e.target === e.currentTarget) {
       handleClearHand();
     }
@@ -454,16 +452,34 @@ export const TowerDefenseGame: React.FC = () => {
     ? gameState.gold >= TOWER_CONFIGS[gameState.selectedTowerType].cost
     : true;
 
+  // Calculate responsive scale for mobile
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const updateScale = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.offsetWidth;
+        const maxWidth = Math.min(containerWidth - 16, gridPixelSize);
+        setScale(maxWidth / gridPixelSize);
+      }
+    };
+
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, [gridPixelSize]);
+
   return (
-    <div className="min-h-screen bg-background p-4">
+    <div className="min-h-screen bg-background p-2 sm:p-4 game-container">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold text-center text-foreground mb-4">
+        <h1 className="text-xl sm:text-3xl font-bold text-center text-foreground mb-2 sm:mb-4">
           🏰 Tower Defense v2.1
         </h1>
 
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Left sidebar */}
-          <div className="lg:w-64 space-y-4">
+        <div className="flex flex-col lg:flex-row gap-2 sm:gap-4">
+          {/* Left sidebar - collapsible on mobile */}
+          <div className="lg:w-64 space-y-2 sm:space-y-4 order-2 lg:order-1">
             <GameHUD
               wave={gameState.wave}
               lives={gameState.lives}
@@ -482,20 +498,25 @@ export const TowerDefenseGame: React.FC = () => {
                 audioManager.playClick();
               }}
             />
-            <TowerShop
-              gold={gameState.gold}
-              selectedTowerType={gameState.selectedTowerType}
-              onSelectTower={handleSelectTowerType}
-            />
-            <AudioControls />
+            <div className="hidden sm:block">
+              <TowerShop
+                gold={gameState.gold}
+                selectedTowerType={gameState.selectedTowerType}
+                onSelectTower={handleSelectTowerType}
+              />
+            </div>
+            <div className="hidden lg:block">
+              <AudioControls />
+            </div>
           </div>
 
-          {/* Game canvas */}
-          <div className="flex-1 flex justify-center">
+          {/* Game canvas - first on mobile */}
+          <div className="flex-1 flex flex-col items-center order-1 lg:order-2" ref={containerRef}>
             <svg
-              width={gridPixelSize}
-              height={gridPixelSize}
-              className={`border-2 rounded-lg bg-card ${
+              width={gridPixelSize * scale}
+              height={gridPixelSize * scale}
+              viewBox={`0 0 ${gridPixelSize} ${gridPixelSize}`}
+              className={`border-2 rounded-lg bg-card touch-none ${
                 gameState.selectedTowerType && !canAffordSelected
                   ? 'border-destructive'
                   : 'border-border'
@@ -508,6 +529,7 @@ export const TowerDefenseGame: React.FC = () => {
                   : 'default',
               }}
               onClick={handleSvgClick}
+              onTouchEnd={handleSvgClick}
             >
               <GameGrid
                 grid={gameState.grid}
@@ -531,10 +553,19 @@ export const TowerDefenseGame: React.FC = () => {
                 towers={gameState.towers}
               />
             </svg>
+
+            {/* Mobile tower shop - below game */}
+            <div className="sm:hidden w-full mt-2">
+              <TowerShop
+                gold={gameState.gold}
+                selectedTowerType={gameState.selectedTowerType}
+                onSelectTower={handleSelectTowerType}
+              />
+            </div>
           </div>
 
           {/* Right sidebar */}
-          <div className="lg:w-64 space-y-4">
+          <div className="lg:w-64 space-y-2 sm:space-y-4 order-3">
             {gameState.selectedTower ? (
               <TowerInfo
                 tower={gameState.selectedTower}
@@ -546,17 +577,21 @@ export const TowerDefenseGame: React.FC = () => {
                 }
               />
             ) : (
-              <div className="bg-card p-4 rounded-lg border border-border text-center text-muted-foreground">
-                Выберите башню для информации
+              <div className="bg-card p-3 sm:p-4 rounded-lg border border-border text-center text-muted-foreground text-sm">
+                Выберите башню
               </div>
             )}
-            <EnemyLegend />
+            <div className="hidden sm:block">
+              <EnemyLegend />
+            </div>
+            <div className="lg:hidden">
+              <AudioControls />
+            </div>
           </div>
         </div>
 
-        <div className="mt-4 text-center text-xs text-muted-foreground">
-          <p>🟢 Старт | 🔴 Финиш | Враги идут слева направо</p>
-          <p>Нажмите F12 для консоли отладки</p>
+        <div className="mt-2 sm:mt-4 text-center text-xs text-muted-foreground">
+          <p>🟢 Старт | 🔴 Финиш</p>
         </div>
       </div>
 
