@@ -1,36 +1,30 @@
 import React from 'react';
-import { ENEMY_CONFIGS, EnemyType } from '@/game/types';
+import { ENEMY_CONFIGS, getEnemyTypes } from '@/game/config';
 
 export const EnemyLegend: React.FC = () => {
-  const enemies: EnemyType[] = ['simple', 'fat', 'thin', 'double'];
+  const enemyTypes = getEnemyTypes();
 
   return (
     <div className="bg-card p-4 rounded-lg border border-border">
-      <h3 className="text-lg font-bold mb-3 text-foreground">Враги</h3>
-      <div className="space-y-2 text-xs">
-        {enemies.map((type) => {
+      <h3 className="text-lg font-bold mb-3 text-foreground">Типы врагов</h3>
+      <div className="space-y-2">
+        {enemyTypes.map((type) => {
           const config = ENEMY_CONFIGS[type];
           return (
-            <div key={type} className="flex items-center gap-2">
+            <div key={type} className="flex items-start gap-2">
               <div
-                className="w-4 h-4 rounded-full"
+                className="w-4 h-4 rounded-full flex-shrink-0 mt-0.5"
                 style={{ backgroundColor: config.color }}
               />
-              <span className="text-foreground font-medium">{config.name}</span>
-              <span className="text-muted-foreground">
-                {config.hp}HP, {config.speed}px/s
-              </span>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm text-foreground">{config.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  ❤️{config.hp} ⚡{config.speed} 💰{config.reward}
+                </div>
+              </div>
             </div>
           );
         })}
-      </div>
-      <div className="mt-3 pt-3 border-t border-border">
-        <p className="text-xs text-muted-foreground">
-          🔴 Боссы на 5, 10, 15, 20 волнах
-        </p>
-        <p className="text-xs text-muted-foreground">
-          HP ×40, скорость ×0.25, награда ×20
-        </p>
       </div>
     </div>
   );

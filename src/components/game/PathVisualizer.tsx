@@ -1,5 +1,6 @@
 import React from 'react';
 import { Enemy } from '@/game/types';
+import { ENEMY_CONFIGS } from '@/game/config';
 
 interface PathVisualizerProps {
   enemies: Enemy[];
@@ -7,17 +8,18 @@ interface PathVisualizerProps {
 }
 
 export const PathVisualizer: React.FC<PathVisualizerProps> = ({ enemies, showPath }) => {
-  if (!showPath) return null;
+  if (!showPath || enemies.length === 0) return null;
 
   return (
     <g className="path-visualizer" style={{ pointerEvents: 'none' }}>
       {enemies.map((enemy) => {
         if (!enemy.path || enemy.path.length === 0) return null;
 
-        // enemy.path already contains PIXEL coordinates.
+        // Get remaining path from current pathIndex
         const remaining = enemy.path.slice(enemy.pathIndex);
-        if (remaining.length < 1) return null;
+        if (remaining.length === 0) return null;
 
+        // Build points: current position + remaining waypoints
         const points = [{ x: enemy.x, y: enemy.y }, ...remaining];
         if (points.length < 2) return null;
 
@@ -25,45 +27,40 @@ export const PathVisualizer: React.FC<PathVisualizerProps> = ({ enemies, showPat
           .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
           .join(' ');
 
-        const pathColor =
-          enemy.type === 'simple'
-            ? '#ef4444'
-            : enemy.type === 'fat'
-              ? '#7c3aed'
-              : enemy.type === 'thin'
-                ? '#22c55e'
-                : '#f59e0b';
+        const pathColor = ENEMY_CONFIGS[enemy.type]?.color || '#ef4444';
 
         return (
           <g key={`path-${enemy.id}`}>
+            {/* Outer glow */}
             <path
               d={pathString}
               fill="none"
               stroke={pathColor}
-              strokeWidth={8}
-              strokeOpacity={0.15}
+              strokeWidth={10}
+              strokeOpacity={0.1}
               strokeLinecap="round"
               strokeLinejoin="round"
             />
+            {/* Main path line */}
             <path
               d={pathString}
               fill="none"
               stroke={pathColor}
               strokeWidth={2}
-              strokeOpacity={0.6}
+              strokeOpacity={0.7}
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeDasharray="8 4"
-              className="animate-pulse"
+              strokeDasharray="6 4"
             />
-            {points.slice(1).map((p, index) => (
+            {/* Waypoint dots */}
+            {remaining.map((p, index) => (
               <circle
                 key={`waypoint-${enemy.id}-${index}`}
                 cx={p.x}
                 cy={p.y}
-                r={3}
+                r={2}
                 fill={pathColor}
-                fillOpacity={0.4}
+                fillOpacity={0.5}
               />
             ))}
           </g>

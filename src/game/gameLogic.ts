@@ -1,5 +1,4 @@
 import {
-  GameState,
   Enemy,
   Tower,
   Projectile,
@@ -41,18 +40,17 @@ export function createEnemy(
   grid: any[][],
   endCell: Position,
   isBoss: boolean = false,
-  use8Directions: boolean = true,
   wave: number = 1
 ): Enemy | null {
   const config = ENEMY_CONFIGS[type];
-  const path = findPath(grid, startCell, endCell, use8Directions);
+  const path = findPath(grid, startCell, endCell, true);
 
   if (!path) return null;
 
   // Difficulty scaling: after wave 20 enemies ramp harder
   const over20 = Math.max(0, wave - 20);
-  const hpScale = 1 + over20 * 0.08;
-  const speedScale = 1 + over20 * 0.04;
+  const hpScale = 1 + over20 * 0.1;
+  const speedScale = 1 + over20 * 0.05;
 
   const hpMultiplier = (isBoss ? BOSS_CONFIG.hpMultiplier : 1) * hpScale;
   const speedMultiplier = (isBoss ? BOSS_CONFIG.speedMultiplier : 1) * speedScale;
@@ -114,39 +112,43 @@ export function updateEnemies(
   return { updatedEnemies, reachedEnd };
 }
 
-function buildRecalculatedPixelPath(
-  enemy: Enemy,
-  gridPath: Position[]
-): { path: Position[]; pathIndex: number } {
-  const pixelPath = gridPath.map((p) => ({ x: gridToPixel(p.x), y: gridToPixel(p.y) }));
-
-  // Prevent visible "backtracking" to the center of the current cell:
-  // start the new path from the enemy's current pixel position, then continue.
-  const resultPath = [{ x: enemy.x, y: enemy.y }, ...pixelPath.slice(1)];
-
-  // Always move towards index 1 next (unless there is no next point)
-  const nextIndex = resultPath.length > 1 ? 1 : 0;
-  return { path: resultPath, pathIndex: nextIndex };
-}
-
+/**
+ * Recalculate paths for all enemies when grid changes (tower placed/sold)
+ * Uses pixel-perfect continuation to prevent backtracking
+ */
 export function recalculateEnemyPaths(
   enemies: Enemy[],
   grid: any[][],
-  endCell: Position,
-  use8Directions: boolean = true
+  endCell: Position
 ): Enemy[] {
   return enemies.map((enemy) => {
     const currentGridX = pixelToGrid(enemy.x);
     const currentGridY = pixelToGrid(enemy.y);
 
-    const gridPath = findPath(grid, { x: currentGridX, y: currentGridY }, endCell, use8Directions);
+    const gridPath = findPath(grid, { x: currentGridX, y: currentGridY }, endCell, true);
 
     if (gridPath && gridPath.length > 0) {
-      const { path, pathIndex } = buildRecalculatedPixelPath(enemy, gridPath);
+      // Build pixel path starting from current position
+      const pixelPath = gridPath.map((p) => ({ x: gridToPixel(p.x), y: gridToPixel(p.y) }));
+      
+      // Start from current pixel position, then continue to next waypoint
+      // Skip the first waypoint if enemy is already close to current cell center
+      const currentCellCenter = { x: gridToPixel(currentGridX), y: gridToPixel(currentGridY) };
+      const distToCenter = distance(enemy.x, enemy.y, currentCellCenter.x, currentCellCenter.y);
+      
+      let newPath: Position[];
+      if (distToCenter < CELL_SIZE * 0.3 && pixelPath.length > 1) {
+        // Close to center, skip to next waypoint
+        newPath = [{ x: enemy.x, y: enemy.y }, ...pixelPath.slice(1)];
+      } else {
+        // Not close, include current cell center as first waypoint
+        newPath = [{ x: enemy.x, y: enemy.y }, ...pixelPath];
+      }
+
       return {
         ...enemy,
-        path,
-        pathIndex,
+        path: newPath,
+        pathIndex: 1, // Start moving to next waypoint
       };
     }
 
