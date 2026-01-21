@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { WaveInfo } from '@/game/types';
-import { WAVE_CONFIG } from '@/game/config';
+import { WAVE_CONFIG, isBossWave } from '@/game/config';
 import { Eye, EyeOff } from 'lucide-react';
 
 interface GameHUDProps {
@@ -37,6 +37,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   onToggleAutoWave,
 }) => {
   const wavesLabel = WAVE_CONFIG.totalWaves === Infinity ? '∞' : String(WAVE_CONFIG.totalWaves);
+  const nextWave = wave + 1;
+  const nextIsBoss = isBossWave(nextWave);
+  const currentIsBoss = isBossWave(wave);
 
   return (
     <div className="bg-card p-4 rounded-lg border border-border">
@@ -46,6 +49,9 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             {wave}/{wavesLabel}
           </div>
           <div className="text-xs text-muted-foreground">Волна</div>
+          {currentIsBoss && waveInProgress && (
+            <div className="text-xs text-destructive font-bold animate-pulse">👑 БОСС!</div>
+          )}
         </div>
         <div className="text-center">
           <div className="text-2xl font-bold text-red-500">❤️ {lives}</div>
@@ -59,9 +65,20 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
       {/* Wave Info */}
       {waveInProgress && (
-        <div className="mb-4 p-2 bg-muted rounded text-center">
-          <div className="text-sm font-mono">👾 {waveInfo.total}/{waveInfo.spawned}/{waveInfo.alive}</div>
-          <div className="text-xs text-muted-foreground">всего/появилось/живо</div>
+        <div className={`mb-4 p-2 rounded text-center ${currentIsBoss ? 'bg-destructive/20 border border-destructive/50' : 'bg-muted'}`}>
+          <div className="text-sm font-mono">
+            {currentIsBoss ? '👑 БОСС' : `👾 ${waveInfo.total}/${waveInfo.spawned}/${waveInfo.alive}`}
+          </div>
+          {!currentIsBoss && (
+            <div className="text-xs text-muted-foreground">всего/появилось/живо</div>
+          )}
+        </div>
+      )}
+
+      {/* Next wave warning */}
+      {!waveInProgress && nextIsBoss && (
+        <div className="mb-3 p-2 bg-destructive/20 border border-destructive/50 rounded text-center animate-pulse">
+          <div className="text-sm font-bold text-destructive">⚠️ СЛЕДУЮЩАЯ ВОЛНА — БОСС! 👑</div>
         </div>
       )}
 
@@ -82,13 +99,16 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
       <div className="flex gap-2 flex-wrap">
         {gameStatus === 'playing' && !waveInProgress && (
-          <Button className="flex-1" onClick={onStartWave}>
-            🚀 Следующая волна
+          <Button 
+            className={`flex-1 ${nextIsBoss ? 'bg-destructive hover:bg-destructive/90' : ''}`} 
+            onClick={onStartWave}
+          >
+            {nextIsBoss ? '👑 Волна босса!' : '🚀 Следующая волна'}
           </Button>
         )}
         {gameStatus === 'playing' && waveInProgress && (
-          <div className="flex-1 text-center py-2 text-muted-foreground text-sm animate-pulse">
-            ⚔️ Бой...
+          <div className={`flex-1 text-center py-2 text-sm animate-pulse ${currentIsBoss ? 'text-destructive font-bold' : 'text-muted-foreground'}`}>
+            {currentIsBoss ? '⚔️ БОЙ С БОССОМ!' : '⚔️ Бой...'}
           </div>
         )}
         {gameStatus === 'playing' && (
@@ -110,6 +130,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         <div className="mt-4 p-4 bg-red-500/20 rounded-lg text-center">
           <div className="text-2xl font-bold text-red-500">💀 ПОРАЖЕНИЕ</div>
           <div className="text-sm text-muted-foreground">Враги прорвались!</div>
+          <div className="text-xs text-muted-foreground mt-1">Вы дошли до волны {wave}</div>
         </div>
       )}
     </div>

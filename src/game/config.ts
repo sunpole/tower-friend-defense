@@ -50,7 +50,7 @@ export const PATHFINDING_CONFIG = {
 // ============================================================
 export const PLAYER_CONFIG = {
   /** Начальное количество золота */
-  startingGold: 100,
+  startingGold: 180,
   /** Начальное количество жизней */
   startingLives: 20,
 };
@@ -80,11 +80,13 @@ export const WAVE_CONFIG = {
 // ============================================================
 export const BOSS_CONFIG = {
   /** Множитель HP для босса */
-  hpMultiplier: 50,
-  /** Множитель скорости для босса (0.3 = на 70% медленнее) */
-  speedMultiplier: 0.3,
+  hpMultiplier: 80,
+  /** Множитель скорости для босса (0.25 = на 75% медленнее) */
+  speedMultiplier: 0.25,
   /** Множитель награды для босса */
-  rewardMultiplier: 25,
+  rewardMultiplier: 50,
+  /** Размер босса (множитель) */
+  sizeMultiplier: 2.5,
 };
 
 // ============================================================
@@ -312,20 +314,30 @@ export interface WaveDefinition {
 
 /**
  * Генератор состава волны
+ * Волны боссов содержат ТОЛЬКО одного босса!
  */
 export function generateWaveEnemies(wave: number): { type: EnemyType; isBoss: boolean }[] {
   const enemies: { type: EnemyType; isBoss: boolean }[] = [];
-  const count = WAVE_CONFIG.getEnemiesCount(wave);
   const isBossWave = wave % WAVE_CONFIG.bossWaveInterval === 0;
 
+  // Boss waves have only 1 boss!
+  if (isBossWave) {
+    const allTypes: EnemyType[] = Object.keys(ENEMY_CONFIGS) as EnemyType[];
+    const unlockedTypes = allTypes.slice(0, Math.min(2 + Math.floor(wave / 3), allTypes.length));
+    // Pick a random type for the boss
+    const bossType = unlockedTypes[Math.floor(Math.random() * unlockedTypes.length)];
+    enemies.push({ type: bossType, isBoss: true });
+    return enemies;
+  }
+
+  // Regular wave
+  const count = WAVE_CONFIG.getEnemiesCount(wave);
   const allTypes: EnemyType[] = Object.keys(ENEMY_CONFIGS) as EnemyType[];
-  // Unlock enemy types gradually
   const unlockedTypes = allTypes.slice(0, Math.min(2 + Math.floor(wave / 3), allTypes.length));
   
   for (let i = 0; i < count; i++) {
-    const isBoss = isBossWave && i === count - 1;
     const typeIndex = Math.floor(Math.random() * unlockedTypes.length);
-    enemies.push({ type: unlockedTypes[typeIndex], isBoss });
+    enemies.push({ type: unlockedTypes[typeIndex], isBoss: false });
   }
 
   return enemies;

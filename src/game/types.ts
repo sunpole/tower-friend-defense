@@ -41,6 +41,7 @@ export interface Enemy {
   reward: number;
   spawnOnDeath?: EnemyType;
   spawnCount?: number;
+  isBoss?: boolean;
 }
 
 export interface Tower {
