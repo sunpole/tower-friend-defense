@@ -48,27 +48,32 @@ export function createEnemy(
   if (!path) return null;
 
   // Difficulty scaling: after wave 20 enemies ramp harder
+  // HP scales more aggressively (+15% per wave after 20)
   const over20 = Math.max(0, wave - 20);
-  const hpScale = 1 + over20 * 0.1;
+  const hpScale = 1 + over20 * 0.15;
   const speedScale = 1 + over20 * 0.05;
 
-  const hpMultiplier = (isBoss ? BOSS_CONFIG.hpMultiplier : 1) * hpScale;
+  // Base wave scaling (before wave 20)
+  const baseWaveScale = 1 + (Math.min(wave, 20) - 1) * 0.08;
+
+  const hpMultiplier = (isBoss ? BOSS_CONFIG.hpMultiplier : 1) * hpScale * baseWaveScale;
   const speedMultiplier = (isBoss ? BOSS_CONFIG.speedMultiplier : 1) * speedScale;
   const rewardMultiplier = isBoss ? BOSS_CONFIG.rewardMultiplier : 1;
 
   return {
     id: generateId(),
     type,
-    hp: config.hp * hpMultiplier,
-    maxHp: config.hp * hpMultiplier,
+    hp: Math.round(config.hp * hpMultiplier),
+    maxHp: Math.round(config.hp * hpMultiplier),
     speed: config.speed * speedMultiplier,
     x: gridToPixel(startCell.x),
     y: gridToPixel(startCell.y),
     path: path.map((p) => ({ x: gridToPixel(p.x), y: gridToPixel(p.y) })),
     pathIndex: 0,
-    reward: config.reward * rewardMultiplier,
-    spawnOnDeath: config.spawnOnDeath,
+    reward: Math.round(config.reward * rewardMultiplier),
+    spawnOnDeath: isBoss ? undefined : config.spawnOnDeath, // Bosses don't spawn
     spawnCount: config.spawnCount,
+    isBoss,
   };
 }
 

@@ -16,6 +16,7 @@ import {
   UPGRADE_CONFIG,
   TowerType,
   EnemyType,
+  isBossWave,
 } from '@/game/config';
 import { canPlaceTower } from '@/game/pathfinding';
 import {
@@ -44,6 +45,7 @@ import { GameHUD } from './game/GameHUD';
 import { EnemyLegend } from './game/EnemyLegend';
 import { AudioControls } from './game/AudioControls';
 import { DebugConsole } from './game/DebugConsole';
+import { WelcomeScreen } from './game/WelcomeScreen';
 
 const createInitialGrid = (): GridCell[][] => {
   const grid: GridCell[][] = [];
@@ -65,7 +67,7 @@ const createInitialState = (): GameState => ({
   wave: 0,
   lives: STARTING_LIVES,
   gold: STARTING_GOLD,
-  gameStatus: 'playing',
+  gameStatus: 'menu',
   selectedTowerType: null,
   selectedTower: null,
   waveInProgress: false,
@@ -425,7 +427,20 @@ export const TowerDefenseGame: React.FC = () => {
   }, []);
 
   const handleNewGame = useCallback(() => {
-    setGameState(createInitialState());
+    const newState = createInitialState();
+    newState.gameStatus = 'menu'; // Return to menu
+    setGameState(newState);
+    waveEnemiesRef.current = [];
+    towerIdCounter = 0;
+    audioManager.stopMusic();
+    prevLivesRef.current = STARTING_LIVES;
+    prevEnemyCountRef.current = 0;
+  }, []);
+
+  const handleStartGame = useCallback(() => {
+    const newState = createInitialState();
+    newState.gameStatus = 'playing';
+    setGameState(newState);
     waveEnemiesRef.current = [];
     towerIdCounter = 0;
     audioManager.stopMusic();
@@ -469,6 +484,13 @@ export const TowerDefenseGame: React.FC = () => {
     window.addEventListener('resize', updateScale);
     return () => window.removeEventListener('resize', updateScale);
   }, [gridPixelSize]);
+
+  // Show welcome screen for menu status
+  if (gameState.gameStatus === 'menu') {
+    return <WelcomeScreen onStartGame={handleStartGame} />;
+  }
+
+  const nextWaveIsBoss = isBossWave(gameState.wave + 1);
 
   return (
     <div className="min-h-screen bg-background p-2 sm:p-4 game-container">
