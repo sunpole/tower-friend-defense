@@ -1,15 +1,17 @@
 import React from 'react';
-import { ENEMY_CONFIGS, getEnemyTypes } from '@/game/config';
+import { useGameConfig } from '@/game/configStore';
+import { EnemyType } from '@/game/config';
 
 export const EnemyLegend: React.FC = () => {
-  const enemyTypes = getEnemyTypes();
+  const runtimeConfig = useGameConfig();
+  const enemyTypes = Object.keys(runtimeConfig.enemies) as EnemyType[];
 
   return (
     <div className="bg-card p-4 rounded-lg border border-border">
       <h3 className="text-lg font-bold mb-3 text-foreground">Типы врагов</h3>
       <div className="space-y-2">
         {enemyTypes.map((type) => {
-          const config = ENEMY_CONFIGS[type];
+          const config = runtimeConfig.enemies[type];
           return (
             <div key={type} className="flex items-start gap-2">
               <div

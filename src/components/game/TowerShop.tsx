@@ -1,6 +1,7 @@
 import React from 'react';
-import { TowerType, TOWER_CONFIGS } from '@/game/types';
+import { TowerType } from '@/game/types';
 import { getTowerTypes } from '@/game/config';
+import { useGameConfig } from '@/game/configStore';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 
@@ -15,11 +16,12 @@ export const TowerShop: React.FC<TowerShopProps> = ({
   selectedTowerType,
   onSelectTower,
 }) => {
-  const towerTypes = getTowerTypes();
+  const runtimeConfig = useGameConfig();
+  const towerTypes = Object.keys(runtimeConfig.towers) as TowerType[];
 
   // Check if player can afford the selected tower
   const canAffordSelected = selectedTowerType 
-    ? gold >= TOWER_CONFIGS[selectedTowerType].cost 
+    ? gold >= runtimeConfig.towers[selectedTowerType].cost 
     : true;
 
   return (
@@ -27,7 +29,7 @@ export const TowerShop: React.FC<TowerShopProps> = ({
       <h3 className="text-lg font-bold mb-3 text-foreground">Магазин башен</h3>
       <div className="grid grid-cols-2 gap-2">
         {towerTypes.map((type) => {
-          const config = TOWER_CONFIGS[type];
+          const config = runtimeConfig.towers[type];
           const canAfford = gold >= config.cost;
           const isSelected = selectedTowerType === type;
 
@@ -63,7 +65,7 @@ export const TowerShop: React.FC<TowerShopProps> = ({
           }`}
         >
           <div className="flex items-center gap-2">
-            <span className="text-lg">{TOWER_CONFIGS[selectedTowerType].icon}</span>
+            <span className="text-lg">{runtimeConfig.towers[selectedTowerType].icon}</span>
             <span className="text-sm font-medium">
               {canAffordSelected ? 'В руке' : 'Нет золота!'}
             </span>
@@ -80,12 +82,11 @@ export const TowerShop: React.FC<TowerShopProps> = ({
       )}
       
       <div className="mt-4 text-xs text-muted-foreground space-y-1">
-        <p>🎯 Снайпер: дальний, точный</p>
-        <p>⚔️ Рыцарь: ближний бой</p>
-        <p>⚡ Лазер: быстрый урон</p>
-        <p>💧 Фонтан: AOE вокруг</p>
-        <p>💥 Пушка: огромный урон</p>
-        <p>❄️ Мороз: замедление</p>
+        {towerTypes.slice(0, 6).map((type) => (
+          <p key={type}>
+            {runtimeConfig.towers[type].icon} {runtimeConfig.towers[type].name}: {runtimeConfig.towers[type].description.slice(0, 20)}...
+          </p>
+        ))}
       </div>
     </div>
   );

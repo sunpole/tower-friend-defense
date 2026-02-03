@@ -1,5 +1,6 @@
 import React from 'react';
-import { Tower, TOWER_CONFIGS } from '@/game/types';
+import { Tower } from '@/game/types';
+import { useGameConfig } from '@/game/configStore';
 import { getTowerStats, getUpgradeCost, getSellValue } from '@/game/gameLogic';
 import { Button } from '@/components/ui/button';
 
@@ -18,11 +19,12 @@ export const TowerInfo: React.FC<TowerInfoProps> = ({
   onSell,
   onDeselect,
 }) => {
-  const config = TOWER_CONFIGS[tower.type];
+  const runtimeConfig = useGameConfig();
+  const config = runtimeConfig.towers[tower.type];
   const stats = getTowerStats(tower);
   const upgradeCost = getUpgradeCost(tower);
   const sellValue = getSellValue(tower);
-  const canUpgrade = tower.level < 3 && gold >= upgradeCost;
+  const canUpgrade = tower.level < runtimeConfig.upgrade.maxLevel && gold >= upgradeCost;
 
   return (
     <div className="bg-card p-4 rounded-lg border border-border">
@@ -53,7 +55,7 @@ export const TowerInfo: React.FC<TowerInfoProps> = ({
       </div>
 
       <div className="flex gap-2">
-        {tower.level < 3 && (
+        {tower.level < runtimeConfig.upgrade.maxLevel && (
           <Button
             className="flex-1"
             onClick={onUpgrade}

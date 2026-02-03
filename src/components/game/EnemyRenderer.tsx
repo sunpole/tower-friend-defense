@@ -1,23 +1,21 @@
 import React, { memo } from 'react';
 import { Enemy } from '@/game/types';
-import { ENEMY_CONFIGS, BOSS_CONFIG } from '@/game/config';
+import { configStore } from '@/game/configStore';
 
 interface EnemyRendererProps {
   enemies: Enemy[];
 }
 
 const EnemySprite = memo<{ enemy: Enemy }>(({ enemy }) => {
-  const config = ENEMY_CONFIGS[enemy.type];
+  const runtimeConfig = configStore.getConfig();
+  const config = runtimeConfig.enemies[enemy.type];
+  const bossConfig = runtimeConfig.boss;
   
-  // Base size calculation
-  let baseSize = enemy.type === 'fat' || enemy.type === 'armored' 
-    ? 24 
-    : enemy.type === 'thin' || enemy.type === 'ghost' 
-      ? 12 
-      : 16;
+  // Base size calculation based on HP (higher HP = bigger)
+  let baseSize = config.hp > 500 ? 24 : config.hp < 100 ? 12 : 16;
   
   // Bosses are much bigger!
-  const size = enemy.isBoss ? baseSize * BOSS_CONFIG.sizeMultiplier : baseSize;
+  const size = enemy.isBoss ? baseSize * bossConfig.sizeMultiplier : baseSize;
   const healthPercent = enemy.hp / enemy.maxHp;
 
   return (

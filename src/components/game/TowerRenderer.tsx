@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Tower, CELL_SIZE } from '@/game/types';
-import { TOWER_CONFIGS } from '@/game/config';
+import { configStore } from '@/game/configStore';
 import { getTowerStats } from '@/game/gameLogic';
 
 interface TowerRendererProps {
@@ -14,7 +14,8 @@ const TowerSprite = memo<{
   isSelected: boolean;
   onClick: () => void;
 }>(({ tower, isSelected, onClick }) => {
-  const config = TOWER_CONFIGS[tower.type];
+  const runtimeConfig = configStore.getConfig();
+  const config = runtimeConfig.towers[tower.type];
   const stats = getTowerStats(tower);
   const size = CELL_SIZE * 0.7;
 
