@@ -4,20 +4,16 @@ import {
   GridCell,
   Tower,
   CELL_SIZE,
-  STARTING_GOLD,
-  STARTING_LIVES,
   WaveInfo,
 } from '@/game/types';
 import {
   GRID_CONFIG,
   TOWER_CONFIGS,
-  WAVE_CONFIG,
   VISUAL_CONFIG,
-  UPGRADE_CONFIG,
   TowerType,
   EnemyType,
-  isBossWave,
 } from '@/game/config';
+import { configStore, useGameConfig } from '@/game/configStore';
 import { canPlaceTower } from '@/game/pathfinding';
 import {
   createEnemy,
@@ -30,6 +26,7 @@ import {
   gridToPixel,
   recalculateEnemyPaths,
   createInitialWaveInfo,
+  isBossWaveFromConfig,
 } from '@/game/gameLogic';
 import { useGameLoop } from '@/game/useGameLoop';
 import { audioManager } from '@/game/audioManager';
@@ -45,7 +42,7 @@ import { GameHUD } from './game/GameHUD';
 import { EnemyLegend } from './game/EnemyLegend';
 import { AudioControls } from './game/AudioControls';
 import { DebugConsole } from './game/DebugConsole';
-import { WelcomeScreen } from './game/WelcomeScreen';
+import { AdminDashboard } from './admin/AdminDashboard';
 
 const createInitialGrid = (): GridCell[][] => {
   const grid: GridCell[][] = [];
@@ -59,37 +56,41 @@ const createInitialGrid = (): GridCell[][] => {
   return grid;
 };
 
-const createInitialState = (): GameState => ({
-  grid: createInitialGrid(),
-  towers: [],
-  enemies: [],
-  projectiles: [],
-  wave: 0,
-  lives: STARTING_LIVES,
-  gold: STARTING_GOLD,
-  gameStatus: 'menu',
-  selectedTowerType: null,
-  selectedTower: null,
-  waveInProgress: false,
-  enemiesSpawned: 0,
-  enemiesToSpawn: 0,
-  spawnTimer: 0,
-  startCell: GRID_CONFIG.startCell,
-  endCell: GRID_CONFIG.endCell,
-  showPathfinding: true,
-  waveInfo: createInitialWaveInfo(),
-});
+const createInitialState = (): GameState => {
+  const playerConfig = configStore.getConfig().player;
+  return {
+    grid: createInitialGrid(),
+    towers: [],
+    enemies: [],
+    projectiles: [],
+    wave: 0,
+    lives: playerConfig.startingLives,
+    gold: playerConfig.startingGold,
+    gameStatus: 'menu',
+    selectedTowerType: null,
+    selectedTower: null,
+    waveInProgress: false,
+    enemiesSpawned: 0,
+    enemiesToSpawn: 0,
+    spawnTimer: 0,
+    startCell: GRID_CONFIG.startCell,
+    endCell: GRID_CONFIG.endCell,
+    showPathfinding: true,
+    waveInfo: createInitialWaveInfo(),
+  };
+};
 
 let towerIdCounter = 0;
 
 export const TowerDefenseGame: React.FC = () => {
+  const runtimeConfig = useGameConfig();
   const [gameState, setGameState] = useState<GameState>(createInitialState());
   const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
   const [canPlace, setCanPlace] = useState(false);
   const [showEnemyPath, setShowEnemyPath] = useState(VISUAL_CONFIG.showEnemyPath);
   const [autoWave, setAutoWave] = useState(false);
   const waveEnemiesRef = useRef<{ type: EnemyType; isBoss: boolean }[]>([]);
-  const prevLivesRef = useRef(STARTING_LIVES);
+  const prevLivesRef = useRef(runtimeConfig.player.startingLives);
   const prevEnemyCountRef = useRef(0);
 
   // Track game state changes for audio
@@ -139,7 +140,7 @@ export const TowerDefenseGame: React.FC = () => {
               }
             }
             newState.enemiesSpawned++;
-            newState.spawnTimer = WAVE_CONFIG.spawnInterval;
+            newState.spawnTimer = runtimeConfig.wave.spawnInterval;
           }
         }
 
@@ -242,7 +243,7 @@ export const TowerDefenseGame: React.FC = () => {
 
         // If placing a new tower
         if (prev.selectedTowerType) {
-          const config = TOWER_CONFIGS[prev.selectedTowerType];
+          const config = runtimeConfig.towers[prev.selectedTowerType] || TOWER_CONFIGS[prev.selectedTowerType];
           if (prev.gold < config.cost) return prev;
 
           if (!canPlaceTower(prev.grid, x, y, prev.startCell, prev.endCell, true)) {
@@ -340,7 +341,7 @@ export const TowerDefenseGame: React.FC = () => {
 
   const handleUpgrade = useCallback(() => {
     setGameState((prev) => {
-      if (!prev.selectedTower || prev.selectedTower.level >= UPGRADE_CONFIG.maxLevel) return prev;
+      if (!prev.selectedTower || prev.selectedTower.level >= runtimeConfig.upgrade.maxLevel) return prev;
 
       const upgradeCost = getUpgradeCost(prev.selectedTower);
       if (prev.gold < upgradeCost) return prev;
@@ -433,7 +434,7 @@ export const TowerDefenseGame: React.FC = () => {
     waveEnemiesRef.current = [];
     towerIdCounter = 0;
     audioManager.stopMusic();
-    prevLivesRef.current = STARTING_LIVES;
+    prevLivesRef.current = runtimeConfig.player.startingLives;
     prevEnemyCountRef.current = 0;
   }, []);
 
@@ -444,7 +445,7 @@ export const TowerDefenseGame: React.FC = () => {
     waveEnemiesRef.current = [];
     towerIdCounter = 0;
     audioManager.stopMusic();
-    prevLivesRef.current = STARTING_LIVES;
+    prevLivesRef.current = runtimeConfig.player.startingLives;
     prevEnemyCountRef.current = 0;
   }, []);
 
@@ -464,7 +465,7 @@ export const TowerDefenseGame: React.FC = () => {
 
   // Check if player can afford selected tower
   const canAffordSelected = gameState.selectedTowerType
-    ? gameState.gold >= TOWER_CONFIGS[gameState.selectedTowerType].cost
+    ? gameState.gold >= (runtimeConfig.towers[gameState.selectedTowerType]?.cost || TOWER_CONFIGS[gameState.selectedTowerType].cost)
     : true;
 
   // Calculate responsive scale for mobile
@@ -485,12 +486,12 @@ export const TowerDefenseGame: React.FC = () => {
     return () => window.removeEventListener('resize', updateScale);
   }, [gridPixelSize]);
 
-  // Show welcome screen for menu status
+  // Show admin dashboard for menu status
   if (gameState.gameStatus === 'menu') {
-    return <WelcomeScreen onStartGame={handleStartGame} />;
+    return <AdminDashboard onStartGame={handleStartGame} />;
   }
 
-  const nextWaveIsBoss = isBossWave(gameState.wave + 1);
+  const nextWaveIsBoss = isBossWaveFromConfig(gameState.wave + 1);
 
   return (
     <div className="min-h-screen bg-background p-2 sm:p-4 game-container">

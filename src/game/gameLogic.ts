@@ -7,14 +7,14 @@ import {
   WaveInfo,
 } from './types';
 import { 
-  ENEMY_CONFIGS, 
-  TOWER_CONFIGS, 
-  UPGRADE_CONFIG,
-  BOSS_CONFIG,
+  TOWER_CONFIGS as DEFAULT_TOWER_CONFIGS, 
+  ENEMY_CONFIGS as DEFAULT_ENEMY_CONFIGS,
+  UPGRADE_CONFIG as DEFAULT_UPGRADE_CONFIG,
+  BOSS_CONFIG as DEFAULT_BOSS_CONFIG,
   VISUAL_CONFIG,
-  generateWaveEnemies,
   EnemyType,
 } from './config';
+import { configStore } from './configStore';
 import { findPath } from './pathfinding';
 
 let idCounter = 0;
@@ -34,6 +34,33 @@ export function distance(x1: number, y1: number, x2: number, y2: number): number
   return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
 }
 
+// Get runtime enemy config (falls back to default if not found)
+function getEnemyConfig(type: EnemyType) {
+  const runtimeConfig = configStore.getConfig();
+  return runtimeConfig.enemies[type] || DEFAULT_ENEMY_CONFIGS[type];
+}
+
+// Get runtime tower config (falls back to default if not found)
+function getTowerConfig(type: string) {
+  const runtimeConfig = configStore.getConfig();
+  return runtimeConfig.towers[type as keyof typeof runtimeConfig.towers] || DEFAULT_TOWER_CONFIGS[type as keyof typeof DEFAULT_TOWER_CONFIGS];
+}
+
+// Get runtime boss config
+function getBossConfig() {
+  return configStore.getConfig().boss;
+}
+
+// Get runtime upgrade config
+function getUpgradeConfig() {
+  return configStore.getConfig().upgrade;
+}
+
+// Get runtime wave config
+function getWaveConfig() {
+  return configStore.getConfig().wave;
+}
+
 export function createEnemy(
   type: EnemyType,
   startCell: Position,
@@ -42,7 +69,8 @@ export function createEnemy(
   isBoss: boolean = false,
   wave: number = 1
 ): Enemy | null {
-  const config = ENEMY_CONFIGS[type];
+  const config = getEnemyConfig(type);
+  const bossConfig = getBossConfig();
   const path = findPath(grid, startCell, endCell, true);
 
   if (!path) return null;
@@ -56,9 +84,9 @@ export function createEnemy(
   // Base wave scaling (before wave 20)
   const baseWaveScale = 1 + (Math.min(wave, 20) - 1) * 0.08;
 
-  const hpMultiplier = (isBoss ? BOSS_CONFIG.hpMultiplier : 1) * hpScale * baseWaveScale;
-  const speedMultiplier = (isBoss ? BOSS_CONFIG.speedMultiplier : 1) * speedScale;
-  const rewardMultiplier = isBoss ? BOSS_CONFIG.rewardMultiplier : 1;
+  const hpMultiplier = (isBoss ? bossConfig.hpMultiplier : 1) * hpScale * baseWaveScale;
+  const speedMultiplier = (isBoss ? bossConfig.speedMultiplier : 1) * speedScale;
+  const rewardMultiplier = isBoss ? bossConfig.rewardMultiplier : 1;
 
   return {
     id: generateId(),
@@ -162,13 +190,14 @@ export function recalculateEnemyPaths(
 }
 
 export function getTowerStats(tower: Tower): { damage: number; range: number; fireRate: number } {
-  const baseConfig = TOWER_CONFIGS[tower.type];
+  const baseConfig = getTowerConfig(tower.type);
+  const upgradeConfig = getUpgradeConfig();
   const levelMultiplier = tower.level - 1;
   
   return {
-    damage: Math.round(baseConfig.damage * Math.pow(UPGRADE_CONFIG.damageMultiplier, levelMultiplier)),
-    range: Math.round(baseConfig.range * Math.pow(UPGRADE_CONFIG.rangeMultiplier, levelMultiplier)),
-    fireRate: baseConfig.fireRate * Math.pow(UPGRADE_CONFIG.fireRateMultiplier, levelMultiplier),
+    damage: Math.round(baseConfig.damage * Math.pow(upgradeConfig.damageMultiplier, levelMultiplier)),
+    range: Math.round(baseConfig.range * Math.pow(upgradeConfig.rangeMultiplier, levelMultiplier)),
+    fireRate: baseConfig.fireRate * Math.pow(upgradeConfig.fireRateMultiplier, levelMultiplier),
   };
 }
 
@@ -193,7 +222,7 @@ export function updateTowers(
       });
 
       if (target) {
-        const config = TOWER_CONFIGS[tower.type];
+        const config = getTowerConfig(tower.type);
         
         if (config.projectileType === 'aoe') {
           // AOE wave
@@ -316,7 +345,7 @@ export function updateProjectiles(
       // Spawn enemies on death (e.g. "double")
       if (enemy.spawnOnDeath && !enemy.id.includes('_spawned')) {
         const spawnType = enemy.spawnOnDeath;
-        const spawnConfig = ENEMY_CONFIGS[spawnType];
+        const spawnConfig = getEnemyConfig(spawnType);
         const count = Math.max(1, enemy.spawnCount ?? spawnConfig.spawnCount ?? 1);
 
         for (let i = 0; i < count; i++) {
@@ -346,22 +375,53 @@ export function updateProjectiles(
   };
 }
 
+export function generateWaveEnemiesFromConfig(wave: number): { type: EnemyType; isBoss: boolean }[] {
+  const enemies: { type: EnemyType; isBoss: boolean }[] = [];
+  const waveConfig = getWaveConfig();
+  const runtimeConfig = configStore.getConfig();
+  const isBossWave = wave % waveConfig.bossWaveInterval === 0;
+
+  // Boss waves have only 1 boss!
+  if (isBossWave) {
+    const allTypes = Object.keys(runtimeConfig.enemies) as EnemyType[];
+    const unlockedTypes = allTypes.slice(0, Math.min(2 + Math.floor(wave / 3), allTypes.length));
+    // Pick a random type for the boss
+    const bossType = unlockedTypes[Math.floor(Math.random() * unlockedTypes.length)];
+    enemies.push({ type: bossType, isBoss: true });
+    return enemies;
+  }
+
+  // Regular wave
+  const count = waveConfig.baseEnemiesPerWave + wave + Math.floor(wave / 5);
+  const allTypes = Object.keys(runtimeConfig.enemies) as EnemyType[];
+  const unlockedTypes = allTypes.slice(0, Math.min(2 + Math.floor(wave / 3), allTypes.length));
+  
+  for (let i = 0; i < count; i++) {
+    const typeIndex = Math.floor(Math.random() * unlockedTypes.length);
+    enemies.push({ type: unlockedTypes[typeIndex], isBoss: false });
+  }
+
+  return enemies;
+}
+
 export function getWaveEnemies(wave: number): { type: EnemyType; isBoss: boolean }[] {
-  return generateWaveEnemies(wave);
+  return generateWaveEnemiesFromConfig(wave);
 }
 
 export function getUpgradeCost(tower: Tower): number {
-  const baseCost = TOWER_CONFIGS[tower.type].cost;
-  return UPGRADE_CONFIG.getUpgradeCost(baseCost, tower.level);
+  const baseCost = getTowerConfig(tower.type).cost;
+  const level = tower.level;
+  return Math.round(baseCost * Math.pow(1.4, level - 1));
 }
 
 export function getSellValue(tower: Tower): number {
-  const baseCost = TOWER_CONFIGS[tower.type].cost;
+  const baseCost = getTowerConfig(tower.type).cost;
+  const upgradeConfig = getUpgradeConfig();
   let totalInvested = baseCost;
   for (let i = 1; i < tower.level; i++) {
-    totalInvested += UPGRADE_CONFIG.getUpgradeCost(baseCost, i);
+    totalInvested += Math.round(baseCost * Math.pow(1.4, i - 1));
   }
-  return Math.round(totalInvested * UPGRADE_CONFIG.getSellValueMultiplier);
+  return Math.round(totalInvested * upgradeConfig.sellValueMultiplier);
 }
 
 export function createInitialWaveInfo(): WaveInfo {
@@ -370,4 +430,10 @@ export function createInitialWaveInfo(): WaveInfo {
     spawned: 0,
     alive: 0,
   };
+}
+
+// Helper to check if wave is boss wave using runtime config
+export function isBossWaveFromConfig(wave: number): boolean {
+  const waveConfig = getWaveConfig();
+  return wave % waveConfig.bossWaveInterval === 0;
 }
