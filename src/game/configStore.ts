@@ -1,6 +1,6 @@
 /**
  * Game Configuration Store
- * Manages runtime game configuration with import/export
+ * Manages runtime game configuration with import/export and localStorage persistence
  */
 
 import {
@@ -8,13 +8,13 @@ import {
   TowerType,
   EnemyConfig,
   TowerConfig,
+  ProjectileType,
   ENEMY_CONFIGS as DEFAULT_ENEMY_CONFIGS,
   TOWER_CONFIGS as DEFAULT_TOWER_CONFIGS,
   WAVE_CONFIG as DEFAULT_WAVE_CONFIG,
   PLAYER_CONFIG as DEFAULT_PLAYER_CONFIG,
   BOSS_CONFIG as DEFAULT_BOSS_CONFIG,
   UPGRADE_CONFIG as DEFAULT_UPGRADE_CONFIG,
-  GRID_CONFIG as DEFAULT_GRID_CONFIG,
 } from './config';
 
 export interface RuntimeWaveConfig {
@@ -44,13 +44,15 @@ export interface RuntimeUpgradeConfig {
 }
 
 export interface GameConfigState {
-  enemies: Record<EnemyType, EnemyConfig>;
-  towers: Record<TowerType, TowerConfig>;
+  enemies: Record<string, EnemyConfig>;
+  towers: Record<string, TowerConfig>;
   wave: RuntimeWaveConfig;
   player: RuntimePlayerConfig;
   boss: RuntimeBossConfig;
   upgrade: RuntimeUpgradeConfig;
 }
+
+const STORAGE_KEY = 'tower-defense-config';
 
 // Create deep clones of default configs
 const createDefaultConfig = (): GameConfigState => ({
@@ -80,12 +82,49 @@ const createDefaultConfig = (): GameConfigState => ({
   },
 });
 
+// Load config from localStorage or use defaults
+const loadConfigFromStorage = (): GameConfigState => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Validate and merge with defaults
+      const defaults = createDefaultConfig();
+      return {
+        enemies: { ...defaults.enemies, ...parsed.enemies },
+        towers: { ...defaults.towers, ...parsed.towers },
+        wave: { ...defaults.wave, ...parsed.wave },
+        player: { ...defaults.player, ...parsed.player },
+        boss: { ...defaults.boss, ...parsed.boss },
+        upgrade: { ...defaults.upgrade, ...parsed.upgrade },
+      };
+    }
+  } catch (error) {
+    console.warn('Failed to load config from localStorage:', error);
+  }
+  return createDefaultConfig();
+};
+
 // Current runtime config
-let currentConfig: GameConfigState = createDefaultConfig();
+let currentConfig: GameConfigState = loadConfigFromStorage();
 
 // Subscribers for config changes
 type ConfigSubscriber = (config: GameConfigState) => void;
 const subscribers: Set<ConfigSubscriber> = new Set();
+
+// Notify all subscribers
+const notifySubscribers = () => {
+  subscribers.forEach((fn) => fn(currentConfig));
+};
+
+// Save to localStorage
+const saveToStorage = () => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(currentConfig));
+  } catch (error) {
+    console.warn('Failed to save config to localStorage:', error);
+  }
+};
 
 export const configStore = {
   /** Get current config */
@@ -94,49 +133,107 @@ export const configStore = {
   /** Update entire config */
   setConfig: (config: GameConfigState) => {
     currentConfig = JSON.parse(JSON.stringify(config));
-    subscribers.forEach((fn) => fn(currentConfig));
+    saveToStorage();
+    notifySubscribers();
   },
 
   /** Update a specific enemy */
-  updateEnemy: (type: EnemyType, updates: Partial<EnemyConfig>) => {
+  updateEnemy: (type: string, updates: Partial<EnemyConfig>) => {
+    if (!currentConfig.enemies[type]) {
+      console.warn(`Enemy type ${type} not found`);
+      return;
+    }
     currentConfig.enemies[type] = { ...currentConfig.enemies[type], ...updates };
-    subscribers.forEach((fn) => fn(currentConfig));
+    saveToStorage();
+    notifySubscribers();
   },
 
   /** Update a specific tower */
-  updateTower: (type: TowerType, updates: Partial<TowerConfig>) => {
+  updateTower: (type: string, updates: Partial<TowerConfig>) => {
+    if (!currentConfig.towers[type]) {
+      console.warn(`Tower type ${type} not found`);
+      return;
+    }
     currentConfig.towers[type] = { ...currentConfig.towers[type], ...updates };
-    subscribers.forEach((fn) => fn(currentConfig));
+    saveToStorage();
+    notifySubscribers();
+  },
+
+  /** Add a new enemy type */
+  addEnemy: (type: string, config: EnemyConfig) => {
+    if (currentConfig.enemies[type]) {
+      console.warn(`Enemy type ${type} already exists`);
+      return false;
+    }
+    currentConfig.enemies[type] = config;
+    saveToStorage();
+    notifySubscribers();
+    return true;
+  },
+
+  /** Add a new tower type */
+  addTower: (type: string, config: TowerConfig) => {
+    if (currentConfig.towers[type]) {
+      console.warn(`Tower type ${type} already exists`);
+      return false;
+    }
+    currentConfig.towers[type] = config;
+    saveToStorage();
+    notifySubscribers();
+    return true;
+  },
+
+  /** Delete an enemy type */
+  deleteEnemy: (type: string) => {
+    if (!currentConfig.enemies[type]) return false;
+    delete currentConfig.enemies[type];
+    saveToStorage();
+    notifySubscribers();
+    return true;
+  },
+
+  /** Delete a tower type */
+  deleteTower: (type: string) => {
+    if (!currentConfig.towers[type]) return false;
+    delete currentConfig.towers[type];
+    saveToStorage();
+    notifySubscribers();
+    return true;
   },
 
   /** Update wave config */
   updateWave: (updates: Partial<RuntimeWaveConfig>) => {
     currentConfig.wave = { ...currentConfig.wave, ...updates };
-    subscribers.forEach((fn) => fn(currentConfig));
+    saveToStorage();
+    notifySubscribers();
   },
 
   /** Update player config */
   updatePlayer: (updates: Partial<RuntimePlayerConfig>) => {
     currentConfig.player = { ...currentConfig.player, ...updates };
-    subscribers.forEach((fn) => fn(currentConfig));
+    saveToStorage();
+    notifySubscribers();
   },
 
   /** Update boss config */
   updateBoss: (updates: Partial<RuntimeBossConfig>) => {
     currentConfig.boss = { ...currentConfig.boss, ...updates };
-    subscribers.forEach((fn) => fn(currentConfig));
+    saveToStorage();
+    notifySubscribers();
   },
 
   /** Update upgrade config */
   updateUpgrade: (updates: Partial<RuntimeUpgradeConfig>) => {
     currentConfig.upgrade = { ...currentConfig.upgrade, ...updates };
-    subscribers.forEach((fn) => fn(currentConfig));
+    saveToStorage();
+    notifySubscribers();
   },
 
   /** Reset to default config */
   resetToDefaults: () => {
     currentConfig = createDefaultConfig();
-    subscribers.forEach((fn) => fn(currentConfig));
+    localStorage.removeItem(STORAGE_KEY);
+    notifySubscribers();
   },
 
   /** Export config as JSON string */
@@ -153,7 +250,8 @@ export const configStore = {
         throw new Error('Invalid config structure');
       }
       currentConfig = parsed;
-      subscribers.forEach((fn) => fn(currentConfig));
+      saveToStorage();
+      notifySubscribers();
       return true;
     } catch (error) {
       console.error('Failed to import config:', error);
@@ -166,6 +264,12 @@ export const configStore = {
     subscribers.add(fn);
     return () => subscribers.delete(fn);
   },
+
+  /** Get list of all enemy types */
+  getEnemyTypes: (): string[] => Object.keys(currentConfig.enemies),
+
+  /** Get list of all tower types */
+  getTowerTypes: (): string[] => Object.keys(currentConfig.towers),
 };
 
 // React hook for using config

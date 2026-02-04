@@ -496,9 +496,19 @@ export const TowerDefenseGame: React.FC = () => {
   return (
     <div className="min-h-screen bg-background p-2 sm:p-4 game-container">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-xl sm:text-3xl font-bold text-center text-foreground mb-2 sm:mb-4">
-          🏰 Tower Defense v2.1
-        </h1>
+        <div className="flex items-center justify-between mb-2 sm:mb-4">
+          <h1 className="text-xl sm:text-3xl font-bold text-foreground">
+            🏰 Tower Defense v2.1
+          </h1>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleNewGame}
+            className="text-xs"
+          >
+            ← Меню
+          </Button>
+        </div>
 
         <div className="flex flex-col lg:flex-row gap-2 sm:gap-4">
           {/* Left sidebar - collapsible on mobile */}

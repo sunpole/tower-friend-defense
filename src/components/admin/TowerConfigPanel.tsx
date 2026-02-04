@@ -2,12 +2,15 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { TowerType, TowerConfig, ProjectileType } from '@/game/config';
+import { TowerConfig, ProjectileType } from '@/game/config';
 import { configStore } from '@/game/configStore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface TowerConfigPanelProps {
-  type: TowerType;
+  type: string;
   config: TowerConfig;
 }
 
@@ -18,154 +21,129 @@ export const TowerConfigPanel: React.FC<TowerConfigPanelProps> = ({ type, config
     configStore.updateTower(type, { [field]: finalValue });
   };
 
+  const handleDelete = () => {
+    const defaultTypes = ['sniper', 'knight', 'laser', 'fountain', 'cannon', 'frost'];
+    if (defaultTypes.includes(type)) {
+      toast.error('Нельзя удалить стандартную башню');
+      return;
+    }
+    configStore.deleteTower(type);
+    toast.success(`Башня "${config.name}" удалена`);
+  };
+
+  const isCustom = !['sniper', 'knight', 'laser', 'fountain', 'cannon', 'frost'].includes(type);
   const projectileTypes: ProjectileType[] = ['bullet', 'line', 'aoe'];
 
   return (
-    <Card className="relative overflow-hidden border-2 hover:border-primary/50 transition-colors">
+    <Card className="relative overflow-hidden border hover:border-primary/50 transition-colors">
       <div
         className="absolute inset-0 opacity-5"
         style={{ backgroundColor: config.color }}
       />
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-3">
+      <CardHeader className="p-3 pb-2">
+        <CardTitle className="flex items-center gap-2 text-sm">
           <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-lg"
-            style={{ backgroundColor: config.color + '30', boxShadow: `0 4px 12px ${config.color}40` }}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
+            style={{ backgroundColor: config.color + '30' }}
           >
             {config.icon}
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <Input
               value={config.name}
               onChange={(e) => handleChange('name', e.target.value)}
-              className="font-bold text-lg h-8 px-2 bg-transparent border-transparent hover:border-border focus:border-primary"
+              className="font-bold text-sm h-6 px-1 bg-transparent border-transparent hover:border-border focus:border-primary"
             />
-            <span className="text-xs text-muted-foreground uppercase tracking-wide">{type}</span>
+            <span className="text-[10px] text-muted-foreground uppercase">{type}</span>
           </div>
+          {isCustom && (
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleDelete}>
+              <Trash2 className="w-3 h-3 text-destructive" />
+            </Button>
+          )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Description */}
-        <div>
-          <Label className="text-xs text-muted-foreground">Описание</Label>
-          <Input
-            value={config.description}
-            onChange={(e) => handleChange('description', e.target.value)}
-            className="mt-1 h-9 text-sm"
-          />
-        </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3">
+      <CardContent className="p-3 pt-0 space-y-2">
+        {/* Stats Grid - Compact */}
+        <div className="grid grid-cols-4 gap-1.5">
           <div>
-            <Label className="text-xs text-muted-foreground flex items-center gap-1">
-              <span className="text-red-500">⚔️</span> Урон
-            </Label>
+            <Label className="text-[10px] text-muted-foreground">⚔️ Урон</Label>
             <Input
               type="number"
               value={config.damage}
               onChange={(e) => handleChange('damage', e.target.value)}
-              className="mt-1 h-9"
+              className="h-7 text-xs"
               min={1}
             />
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground flex items-center gap-1">
-              <span className="text-blue-500">🎯</span> Дальность
-            </Label>
+            <Label className="text-[10px] text-muted-foreground">🎯 Дальн.</Label>
             <Input
               type="number"
               value={config.range}
               onChange={(e) => handleChange('range', e.target.value)}
-              className="mt-1 h-9"
+              className="h-7 text-xs"
               min={30}
             />
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground flex items-center gap-1">
-              <span className="text-green-500">⚡</span> Скорострельность
-            </Label>
+            <Label className="text-[10px] text-muted-foreground">⚡ Скор.</Label>
             <Input
               type="number"
               value={config.fireRate}
               onChange={(e) => handleChange('fireRate', e.target.value)}
-              className="mt-1 h-9"
+              className="h-7 text-xs"
               min={0.1}
               step={0.1}
             />
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground flex items-center gap-1">
-              <span className="text-purple-500">🚀</span> Скорость снаряда
-            </Label>
-            <Input
-              type="number"
-              value={config.projectileSpeed}
-              onChange={(e) => handleChange('projectileSpeed', e.target.value)}
-              className="mt-1 h-9"
-              min={50}
-            />
-          </div>
-        </div>
-
-        {/* Cost and Type */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label className="text-xs text-muted-foreground flex items-center gap-1">
-              <span className="text-yellow-500">💰</span> Стоимость
-            </Label>
+            <Label className="text-[10px] text-muted-foreground">💰 Цена</Label>
             <Input
               type="number"
               value={config.cost}
               onChange={(e) => handleChange('cost', e.target.value)}
-              className="mt-1 h-9"
+              className="h-7 text-xs"
               min={10}
             />
           </div>
+        </div>
+
+        {/* Type, Color, Icon */}
+        <div className="grid grid-cols-3 gap-1.5">
           <div>
-            <Label className="text-xs text-muted-foreground">Тип атаки</Label>
+            <Label className="text-[10px] text-muted-foreground">Тип атаки</Label>
             <Select
               value={config.projectileType}
               onValueChange={(v) => handleChange('projectileType', v)}
             >
-              <SelectTrigger className="mt-1 h-9">
+              <SelectTrigger className="h-7 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {projectileTypes.map((pt) => (
                   <SelectItem key={pt} value={pt}>
-                    {pt === 'bullet' ? '🔵 Пуля' : pt === 'line' ? '⚡ Лазер' : '💥 АОЕ'}
+                    {pt === 'bullet' ? '🔵' : pt === 'line' ? '⚡' : '💥'}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-        </div>
-
-        {/* Color and Icon */}
-        <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label className="text-xs text-muted-foreground">Цвет</Label>
-            <div className="flex gap-2 mt-1">
-              <input
-                type="color"
-                value={config.color}
-                onChange={(e) => handleChange('color', e.target.value)}
-                className="w-9 h-9 rounded border border-border cursor-pointer"
-              />
-              <Input
-                value={config.color}
-                onChange={(e) => handleChange('color', e.target.value)}
-                className="h-9 flex-1 font-mono text-xs"
-              />
-            </div>
+            <Label className="text-[10px] text-muted-foreground">Цвет</Label>
+            <input
+              type="color"
+              value={config.color}
+              onChange={(e) => handleChange('color', e.target.value)}
+              className="w-full h-7 rounded border border-border cursor-pointer"
+            />
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">Иконка (emoji)</Label>
+            <Label className="text-[10px] text-muted-foreground">Иконка</Label>
             <Input
               value={config.icon}
               onChange={(e) => handleChange('icon', e.target.value)}
-              className="mt-1 h-9 text-center text-xl"
+              className="h-7 text-center text-base"
               maxLength={4}
             />
           </div>
