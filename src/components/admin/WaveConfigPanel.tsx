@@ -1,10 +1,10 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
 import { RuntimeWaveConfig, RuntimeBossConfig, configStore } from '@/game/configStore';
-import { Waves, Crown, Clock, Users } from 'lucide-react';
+import { Waves, Crown } from 'lucide-react';
 
 interface WaveConfigPanelProps {
   waveConfig: RuntimeWaveConfig;
@@ -20,32 +20,24 @@ export const WaveConfigPanel: React.FC<WaveConfigPanelProps> = ({ waveConfig, bo
     configStore.updateBoss({ [field]: value });
   };
 
-  // Calculate example wave compositions
-  const getWaveEnemies = (wave: number) => {
-    return waveConfig.baseEnemiesPerWave + wave + Math.floor(wave / 5);
-  };
-
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-3 md:grid-cols-2">
       {/* Wave Settings */}
-      <Card className="border-2 hover:border-primary/50 transition-colors">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-              <Waves className="w-5 h-5 text-purple-500" />
+      <Card className="border hover:border-primary/50 transition-colors">
+        <CardHeader className="p-3 pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <div className="w-7 h-7 rounded-lg bg-purple-500/20 flex items-center justify-center">
+              <Waves className="w-4 h-4 text-purple-500" />
             </div>
             Настройки волн
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="p-3 pt-0 space-y-3">
           {/* Base Enemies */}
           <div>
-            <div className="flex justify-between items-center mb-2">
-              <Label className="text-sm flex items-center gap-2">
-                <Users className="w-4 h-4 text-muted-foreground" />
-                Базовое кол-во врагов
-              </Label>
-              <span className="text-lg font-bold text-primary">{waveConfig.baseEnemiesPerWave}</span>
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs">Базовое кол-во врагов</Label>
+              <span className="text-sm font-bold text-primary">{waveConfig.baseEnemiesPerWave}</span>
             </div>
             <Slider
               value={[waveConfig.baseEnemiesPerWave]}
@@ -54,19 +46,13 @@ export const WaveConfigPanel: React.FC<WaveConfigPanelProps> = ({ waveConfig, bo
               max={20}
               step={1}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Формула: {waveConfig.baseEnemiesPerWave} + волна + волна/5
-            </p>
           </div>
 
           {/* Boss Wave Interval */}
           <div>
-            <div className="flex justify-between items-center mb-2">
-              <Label className="text-sm flex items-center gap-2">
-                <Crown className="w-4 h-4 text-muted-foreground" />
-                Интервал боссов
-              </Label>
-              <span className="text-lg font-bold text-primary">Каждые {waveConfig.bossWaveInterval}</span>
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs">Интервал боссов</Label>
+              <span className="text-sm font-bold text-primary">Каждые {waveConfig.bossWaveInterval}</span>
             </div>
             <Slider
               value={[waveConfig.bossWaveInterval]}
@@ -75,19 +61,13 @@ export const WaveConfigPanel: React.FC<WaveConfigPanelProps> = ({ waveConfig, bo
               max={15}
               step={1}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Босс-волны: {[...Array(5)].map((_, i) => (i + 1) * waveConfig.bossWaveInterval).join(', ')}...
-            </p>
           </div>
 
           {/* Spawn Interval */}
           <div>
-            <div className="flex justify-between items-center mb-2">
-              <Label className="text-sm flex items-center gap-2">
-                <Clock className="w-4 h-4 text-muted-foreground" />
-                Интервал спавна (сек)
-              </Label>
-              <span className="text-lg font-bold text-primary">{waveConfig.spawnInterval.toFixed(1)}с</span>
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs">Интервал спавна (сек)</Label>
+              <span className="text-sm font-bold text-primary">{waveConfig.spawnInterval.toFixed(1)}с</span>
             </div>
             <Slider
               value={[waveConfig.spawnInterval * 10]}
@@ -99,22 +79,19 @@ export const WaveConfigPanel: React.FC<WaveConfigPanelProps> = ({ waveConfig, bo
           </div>
 
           {/* Wave Examples */}
-          <div className="p-3 bg-muted/50 rounded-lg border border-border">
-            <Label className="text-xs text-muted-foreground mb-2 block">Примеры волн</Label>
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              {[1, 5, 10, 15, 20, 25].map((wave) => {
+          <div className="p-2 bg-muted/50 rounded border border-border">
+            <Label className="text-[10px] text-muted-foreground mb-1 block">Примеры волн</Label>
+            <div className="flex flex-wrap gap-1 text-[10px]">
+              {[1, 5, 10, 15, 20].map((wave) => {
                 const isBoss = wave % waveConfig.bossWaveInterval === 0;
+                const count = waveConfig.baseEnemiesPerWave + wave + Math.floor(wave / 5);
                 return (
-                  <div
+                  <span
                     key={wave}
-                    className={`p-2 rounded text-center ${
-                      isBoss ? 'bg-yellow-500/20 border border-yellow-500/50' : 'bg-background'
-                    }`}
+                    className={`px-1.5 py-0.5 rounded ${isBoss ? 'bg-yellow-500/30 text-yellow-500' : 'bg-muted'}`}
                   >
-                    <span className="font-bold">#{wave}</span>
-                    <br />
-                    {isBoss ? '👑 Босс' : `${getWaveEnemies(wave)} шт`}
-                  </div>
+                    #{wave}: {isBoss ? '👑' : `${count}`}
+                  </span>
                 );
               })}
             </div>
@@ -123,21 +100,27 @@ export const WaveConfigPanel: React.FC<WaveConfigPanelProps> = ({ waveConfig, bo
       </Card>
 
       {/* Boss Settings */}
-      <Card className="border-2 hover:border-primary/50 transition-colors bg-gradient-to-br from-yellow-500/5 to-orange-500/5">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
-              <Crown className="w-5 h-5 text-yellow-500" />
+      <Card className="border hover:border-primary/50 transition-colors bg-gradient-to-br from-yellow-500/5 to-orange-500/5">
+        <CardHeader className="p-3 pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <div className="w-7 h-7 rounded-lg bg-yellow-500/20 flex items-center justify-center">
+              <Crown className="w-4 h-4 text-yellow-500" />
             </div>
             Настройки боссов
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="p-3 pt-0 space-y-3">
           {/* HP Multiplier */}
           <div>
-            <div className="flex justify-between items-center mb-2">
-              <Label className="text-sm">❤️ Множитель HP</Label>
-              <span className="text-lg font-bold text-red-500">×{bossConfig.hpMultiplier}</span>
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs">❤️ HP</Label>
+              <Input
+                type="number"
+                value={bossConfig.hpMultiplier}
+                onChange={(e) => handleBossChange('hpMultiplier', Number(e.target.value))}
+                className="w-16 h-6 text-xs text-right"
+                min={5}
+              />
             </div>
             <Slider
               value={[bossConfig.hpMultiplier]}
@@ -150,9 +133,9 @@ export const WaveConfigPanel: React.FC<WaveConfigPanelProps> = ({ waveConfig, bo
 
           {/* Speed Multiplier */}
           <div>
-            <div className="flex justify-between items-center mb-2">
-              <Label className="text-sm">🏃 Множитель скорости</Label>
-              <span className="text-lg font-bold text-blue-500">×{bossConfig.speedMultiplier.toFixed(2)}</span>
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs">🏃 Скорость</Label>
+              <span className="text-sm font-bold text-blue-500">×{bossConfig.speedMultiplier.toFixed(2)}</span>
             </div>
             <Slider
               value={[bossConfig.speedMultiplier * 100]}
@@ -165,9 +148,9 @@ export const WaveConfigPanel: React.FC<WaveConfigPanelProps> = ({ waveConfig, bo
 
           {/* Reward Multiplier */}
           <div>
-            <div className="flex justify-between items-center mb-2">
-              <Label className="text-sm">💰 Множитель награды</Label>
-              <span className="text-lg font-bold text-yellow-500">×{bossConfig.rewardMultiplier}</span>
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs">💰 Награда</Label>
+              <span className="text-sm font-bold text-yellow-500">×{bossConfig.rewardMultiplier}</span>
             </div>
             <Slider
               value={[bossConfig.rewardMultiplier]}
@@ -180,9 +163,9 @@ export const WaveConfigPanel: React.FC<WaveConfigPanelProps> = ({ waveConfig, bo
 
           {/* Size Multiplier */}
           <div>
-            <div className="flex justify-between items-center mb-2">
-              <Label className="text-sm">📏 Множитель размера</Label>
-              <span className="text-lg font-bold text-purple-500">×{bossConfig.sizeMultiplier.toFixed(1)}</span>
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs">📏 Размер</Label>
+              <span className="text-sm font-bold text-purple-500">×{bossConfig.sizeMultiplier.toFixed(1)}</span>
             </div>
             <Slider
               value={[bossConfig.sizeMultiplier * 10]}
@@ -191,30 +174,6 @@ export const WaveConfigPanel: React.FC<WaveConfigPanelProps> = ({ waveConfig, bo
               max={50}
               step={1}
             />
-          </div>
-
-          {/* Boss Preview */}
-          <div className="p-4 bg-background/50 rounded-lg border border-yellow-500/30 text-center">
-            <p className="text-xs text-muted-foreground mb-2">Пример босса (простой враг)</p>
-            <div className="flex items-center justify-center gap-4">
-              <div className="text-center">
-                <div className="w-6 h-6 rounded-full bg-red-500 mx-auto mb-1" />
-                <span className="text-xs">Обычный</span>
-              </div>
-              <span className="text-muted-foreground">→</span>
-              <div className="text-center">
-                <div
-                  className="rounded-full bg-red-500 mx-auto mb-1 ring-4 ring-yellow-400/50"
-                  style={{
-                    width: 24 * bossConfig.sizeMultiplier,
-                    height: 24 * bossConfig.sizeMultiplier,
-                  }}
-                >
-                  <span className="text-lg">👑</span>
-                </div>
-                <span className="text-xs">Босс</span>
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>
