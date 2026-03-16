@@ -1,6 +1,5 @@
 import React from 'react';
 import { TowerType } from '@/game/types';
-import { getTowerTypes } from '@/game/config';
 import { useGameConfig } from '@/game/configStore';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
@@ -11,83 +10,40 @@ interface TowerShopProps {
   onSelectTower: (type: TowerType | null) => void;
 }
 
-export const TowerShop: React.FC<TowerShopProps> = ({
-  gold,
-  selectedTowerType,
-  onSelectTower,
-}) => {
+export const TowerShop: React.FC<TowerShopProps> = ({ gold, selectedTowerType, onSelectTower }) => {
   const runtimeConfig = useGameConfig();
   const towerTypes = Object.keys(runtimeConfig.towers) as TowerType[];
-
-  // Check if player can afford the selected tower
-  const canAffordSelected = selectedTowerType 
-    ? gold >= runtimeConfig.towers[selectedTowerType].cost 
-    : true;
+  const canAffordSelected = selectedTowerType ? gold >= runtimeConfig.towers[selectedTowerType].cost : true;
 
   return (
-    <div className="bg-card p-4 rounded-lg border border-border">
-      <h3 className="text-lg font-bold mb-3 text-foreground">Магазин башен</h3>
-      <div className="grid grid-cols-2 gap-2">
+    <div className="bg-card p-2 sm:p-3 rounded-lg border border-border">
+      <h3 className="text-xs sm:text-sm font-bold mb-2 text-foreground">Магазин</h3>
+      <div className="grid grid-cols-3 sm:grid-cols-2 gap-1">
         {towerTypes.map((type) => {
           const config = runtimeConfig.towers[type];
           const canAfford = gold >= config.cost;
           const isSelected = selectedTowerType === type;
-
           return (
-            <Button
-              key={type}
-              variant={isSelected ? 'default' : 'outline'}
-              className={`flex flex-col h-auto py-2 ${
-                !canAfford ? 'opacity-50' : ''
-              }`}
-              style={{
-                borderColor: isSelected ? config.color : undefined,
-                backgroundColor: isSelected ? config.color : undefined,
-              }}
-              onClick={() => onSelectTower(isSelected ? null : type)}
-              disabled={!canAfford}
-            >
-              <span className="text-lg">{config.icon}</span>
-              <span className="text-xs font-bold">{config.name}</span>
-              <span className="text-xs text-muted-foreground">💰 {config.cost}</span>
+            <Button key={type} variant={isSelected ? 'default' : 'outline'}
+              className={`flex flex-col h-auto py-1.5 px-1 text-[10px] ${!canAfford ? 'opacity-40' : ''}`}
+              style={{ borderColor: isSelected ? config.color : undefined, backgroundColor: isSelected ? config.color : undefined }}
+              onClick={() => onSelectTower(isSelected ? null : type)} disabled={!canAfford}>
+              <span className="text-base leading-none">{config.icon}</span>
+              <span className="font-bold truncate w-full text-center">{config.name}</span>
+              <span className="text-muted-foreground">💰{config.cost}</span>
             </Button>
           );
         })}
       </div>
 
-      {/* Selected tower indicator with clear button */}
       {selectedTowerType && (
-        <div 
-          className={`mt-3 p-2 rounded border flex items-center justify-between ${
-            canAffordSelected 
-              ? 'bg-primary/20 border-primary' 
-              : 'bg-destructive/20 border-destructive animate-pulse'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-lg">{runtimeConfig.towers[selectedTowerType].icon}</span>
-            <span className="text-sm font-medium">
-              {canAffordSelected ? 'В руке' : 'Нет золота!'}
-            </span>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6"
-            onClick={() => onSelectTower(null)}
-          >
-            <X className="h-4 w-4" />
+        <div className={`mt-2 p-1.5 rounded border flex items-center justify-between text-xs ${canAffordSelected ? 'bg-primary/20 border-primary/50' : 'bg-destructive/20 border-destructive/50 animate-pulse'}`}>
+          <span>{runtimeConfig.towers[selectedTowerType].icon} {canAffordSelected ? 'В руке' : 'Нет золота!'}</span>
+          <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => onSelectTower(null)}>
+            <X className="h-3 w-3" />
           </Button>
         </div>
       )}
-      
-      <div className="mt-4 text-xs text-muted-foreground space-y-1">
-        {towerTypes.slice(0, 6).map((type) => (
-          <p key={type}>
-            {runtimeConfig.towers[type].icon} {runtimeConfig.towers[type].name}: {runtimeConfig.towers[type].description.slice(0, 20)}...
-          </p>
-        ))}
-      </div>
     </div>
   );
 };
