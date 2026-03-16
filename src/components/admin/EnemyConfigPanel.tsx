@@ -1,5 +1,4 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { EnemyConfig } from '@/game/config';
@@ -14,6 +13,8 @@ interface EnemyConfigPanelProps {
   config: EnemyConfig;
 }
 
+const DEFAULT_TYPES = ['simple', 'fat', 'thin', 'double', 'ghost', 'armored'];
+
 export const EnemyConfigPanel: React.FC<EnemyConfigPanelProps> = ({ type, config }) => {
   const gameConfig = useGameConfig();
   const enemyTypes = Object.keys(gameConfig.enemies);
@@ -21,138 +22,78 @@ export const EnemyConfigPanel: React.FC<EnemyConfigPanelProps> = ({ type, config
   const handleChange = (field: keyof EnemyConfig, value: string | number | undefined) => {
     const numericFields = ['hp', 'speed', 'reward', 'spawnCount'];
     let finalValue: string | number | undefined = value;
-
-    if (numericFields.includes(field) && value !== undefined) {
-      finalValue = Number(value);
-    }
-
+    if (numericFields.includes(field) && value !== undefined) finalValue = Number(value);
     configStore.updateEnemy(type, { [field]: finalValue });
   };
 
   const handleDelete = () => {
-    const defaultTypes = ['simple', 'fat', 'thin', 'double', 'ghost', 'armored'];
-    if (defaultTypes.includes(type)) {
-      toast.error('Нельзя удалить стандартного врага');
-      return;
-    }
+    if (DEFAULT_TYPES.includes(type)) { toast.error('Нельзя удалить стандартного врага'); return; }
     configStore.deleteEnemy(type);
     toast.success(`Враг "${config.name}" удалён`);
   };
 
-  const isCustom = !['simple', 'fat', 'thin', 'double', 'ghost', 'armored'].includes(type);
+  const isCustom = !DEFAULT_TYPES.includes(type);
 
   return (
-    <Card className="relative overflow-hidden border hover:border-primary/50 transition-colors">
-      <div
-        className="absolute inset-0 opacity-10"
-        style={{ backgroundColor: config.color }}
-      />
-      <CardHeader className="p-3 pb-2">
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
-            style={{ backgroundColor: config.color }}
-          >
-            {type.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex-1 min-w-0">
-            <Input
-              value={config.name}
-              onChange={(e) => handleChange('name', e.target.value)}
-              className="font-bold text-sm h-6 px-1 bg-transparent border-transparent hover:border-border focus:border-primary"
-            />
-            <span className="text-[10px] text-muted-foreground uppercase">{type}</span>
-          </div>
-          {isCustom && (
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleDelete}>
-              <Trash2 className="w-3 h-3 text-destructive" />
-            </Button>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-3 pt-0 space-y-2">
-        {/* Core Stats - Compact */}
-        <div className="grid grid-cols-3 gap-1.5">
-          <div>
-            <Label className="text-[10px] text-muted-foreground">❤️ HP</Label>
-            <Input
-              type="number"
-              value={config.hp}
-              onChange={(e) => handleChange('hp', e.target.value)}
-              className="h-7 text-xs"
-              min={1}
-            />
-          </div>
-          <div>
-            <Label className="text-[10px] text-muted-foreground">🏃 Скор.</Label>
-            <Input
-              type="number"
-              value={config.speed}
-              onChange={(e) => handleChange('speed', e.target.value)}
-              className="h-7 text-xs"
-              min={1}
-            />
-          </div>
-          <div>
-            <Label className="text-[10px] text-muted-foreground">💰 Нагр.</Label>
-            <Input
-              type="number"
-              value={config.reward}
-              onChange={(e) => handleChange('reward', e.target.value)}
-              className="h-7 text-xs"
-              min={1}
-            />
-          </div>
+    <div className="relative rounded-lg border border-border bg-card/80 p-2.5 hover:border-primary/40 transition-colors">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0"
+          style={{ backgroundColor: config.color }}>
+          {type.charAt(0).toUpperCase()}
         </div>
+        <div className="flex-1 min-w-0">
+          <Input value={config.name} onChange={(e) => handleChange('name', e.target.value)}
+            className="font-bold text-xs h-5 px-1 bg-transparent border-transparent hover:border-border focus:border-primary" />
+          <span className="text-[9px] text-muted-foreground uppercase tracking-wider">{type}</span>
+        </div>
+        {isCustom && (
+          <Button variant="ghost" size="icon" className="h-5 w-5 flex-shrink-0" onClick={handleDelete}>
+            <Trash2 className="w-3 h-3 text-destructive" />
+          </Button>
+        )}
+      </div>
 
-        {/* Color */}
-        <div className="flex gap-2 items-center">
-          <input
-            type="color"
-            value={config.color}
-            onChange={(e) => handleChange('color', e.target.value)}
-            className="w-7 h-7 rounded border border-border cursor-pointer flex-shrink-0"
-          />
-          <Input
-            value={config.color}
-            onChange={(e) => handleChange('color', e.target.value)}
-            className="h-7 text-xs flex-1 font-mono"
-          />
-        </div>
-
-        {/* Spawn on Death - Compact */}
-        <div className="p-2 bg-muted/50 rounded border border-border">
-          <Label className="text-[10px] text-muted-foreground mb-1 block">💥 При смерти</Label>
-          <div className="grid grid-cols-2 gap-1.5">
-            <Select
-              value={config.spawnOnDeath || 'none'}
-              onValueChange={(v) => handleChange('spawnOnDeath', v === 'none' ? undefined : v)}
-            >
-              <SelectTrigger className="h-7 text-xs">
-                <SelectValue placeholder="Нет" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Нет</SelectItem>
-                {enemyTypes.map((et) => (
-                  <SelectItem key={et} value={et}>
-                    {gameConfig.enemies[et].name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              type="number"
-              value={config.spawnCount || 0}
-              onChange={(e) => handleChange('spawnCount', e.target.value)}
-              className="h-7 text-xs"
-              min={0}
-              max={10}
-              disabled={!config.spawnOnDeath}
-              placeholder="Кол-во"
-            />
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-1">
+        {[
+          { label: '❤️ HP', field: 'hp' as const, val: config.hp, min: 1 },
+          { label: '🏃 Скор.', field: 'speed' as const, val: config.speed, min: 1 },
+          { label: '💰 Нагр.', field: 'reward' as const, val: config.reward, min: 1 },
+        ].map(({ label, field, val, min }) => (
+          <div key={field}>
+            <Label className="text-[9px] text-muted-foreground">{label}</Label>
+            <Input type="number" value={val} onChange={(e) => handleChange(field, e.target.value)}
+              className="h-6 text-[11px] px-1" min={min} />
           </div>
+        ))}
+      </div>
+
+      {/* Color + Spawn */}
+      <div className="flex gap-1.5 mt-1 items-end">
+        <div className="w-8 flex-shrink-0">
+          <Label className="text-[9px] text-muted-foreground">🎨</Label>
+          <input type="color" value={config.color} onChange={(e) => handleChange('color', e.target.value)}
+            className="w-full h-6 rounded border border-border cursor-pointer bg-transparent" />
         </div>
-      </CardContent>
-    </Card>
+        <div className="flex-1">
+          <Label className="text-[9px] text-muted-foreground">💥 Спавн</Label>
+          <Select value={config.spawnOnDeath || 'none'} onValueChange={(v) => handleChange('spawnOnDeath', v === 'none' ? undefined : v)}>
+            <SelectTrigger className="h-6 text-[11px]"><SelectValue placeholder="Нет" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none" className="text-xs">Нет</SelectItem>
+              {enemyTypes.map((et) => (
+                <SelectItem key={et} value={et} className="text-xs">{gameConfig.enemies[et].name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-10 flex-shrink-0">
+          <Label className="text-[9px] text-muted-foreground">×</Label>
+          <Input type="number" value={config.spawnCount || 0} onChange={(e) => handleChange('spawnCount', e.target.value)}
+            className="h-6 text-[11px] px-1" min={0} max={10} disabled={!config.spawnOnDeath} />
+        </div>
+      </div>
+    </div>
   );
 };

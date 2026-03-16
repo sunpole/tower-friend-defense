@@ -12,13 +12,7 @@ interface TowerInfoProps {
   onDeselect: () => void;
 }
 
-export const TowerInfo: React.FC<TowerInfoProps> = ({
-  tower,
-  gold,
-  onUpgrade,
-  onSell,
-  onDeselect,
-}) => {
+export const TowerInfo: React.FC<TowerInfoProps> = ({ tower, gold, onUpgrade, onSell, onDeselect }) => {
   const runtimeConfig = useGameConfig();
   const config = runtimeConfig.towers[tower.type];
   const stats = getTowerStats(tower);
@@ -27,45 +21,37 @@ export const TowerInfo: React.FC<TowerInfoProps> = ({
   const canUpgrade = tower.level < runtimeConfig.upgrade.maxLevel && gold >= upgradeCost;
 
   return (
-    <div className="bg-card p-4 rounded-lg border border-border">
-      <div className="flex justify-between items-center mb-3">
-        <h3 className="text-lg font-bold text-foreground">
-          {config.name} (Ур. {tower.level})
+    <div className="bg-card p-2 sm:p-3 rounded-lg border border-border">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-sm font-bold text-foreground">
+          {config?.icon} {config?.name} <span className="text-muted-foreground">Ур.{tower.level}</span>
         </h3>
-        <Button variant="ghost" size="sm" onClick={onDeselect}>
-          ✕
-        </Button>
+        <Button variant="ghost" size="sm" onClick={onDeselect} className="h-6 w-6 p-0">✕</Button>
       </div>
 
-      <div className="space-y-2 text-sm mb-4">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Урон:</span>
-          <span className="text-foreground font-medium">{stats.damage}</span>
+      <div className="grid grid-cols-3 gap-1 text-[11px] mb-2">
+        <div className="text-center p-1 bg-muted/30 rounded">
+          <div className="font-bold">{stats.damage}</div>
+          <div className="text-muted-foreground">⚔️ Урон</div>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Дальность:</span>
-          <span className="text-foreground font-medium">{stats.range}px</span>
+        <div className="text-center p-1 bg-muted/30 rounded">
+          <div className="font-bold">{stats.range}</div>
+          <div className="text-muted-foreground">🎯 Дальн.</div>
         </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Скорость:</span>
-          <span className="text-foreground font-medium">
-            {stats.fireRate.toFixed(1)}/с
-          </span>
+        <div className="text-center p-1 bg-muted/30 rounded">
+          <div className="font-bold">{stats.fireRate.toFixed(1)}/с</div>
+          <div className="text-muted-foreground">⚡ Скор.</div>
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-1">
         {tower.level < runtimeConfig.upgrade.maxLevel && (
-          <Button
-            className="flex-1"
-            onClick={onUpgrade}
-            disabled={!canUpgrade}
-          >
-            Улучшить (💰{upgradeCost})
+          <Button className="flex-1 h-7 text-xs" onClick={onUpgrade} disabled={!canUpgrade}>
+            ⬆️ {upgradeCost}💰
           </Button>
         )}
-        <Button variant="destructive" onClick={onSell}>
-          Продать (💰{sellValue})
+        <Button variant="destructive" className="h-7 text-xs" onClick={onSell}>
+          💰{sellValue}
         </Button>
       </div>
     </div>
