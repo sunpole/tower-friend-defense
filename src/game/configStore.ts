@@ -4,11 +4,8 @@
  */
 
 import {
-  EnemyType,
-  TowerType,
   EnemyConfig,
   TowerConfig,
-  ProjectileType,
   ENEMY_CONFIGS as DEFAULT_ENEMY_CONFIGS,
   TOWER_CONFIGS as DEFAULT_TOWER_CONFIGS,
   WAVE_CONFIG as DEFAULT_WAVE_CONFIG,
@@ -54,10 +51,24 @@ export interface GameConfigState {
 
 const STORAGE_KEY = 'tower-defense-config';
 
+const cloneConfig = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+
+const mergeConfig = (config: Partial<GameConfigState>): GameConfigState => {
+  const defaults = createDefaultConfig();
+  return {
+    enemies: { ...defaults.enemies, ...(config.enemies ?? {}) },
+    towers: { ...defaults.towers, ...(config.towers ?? {}) },
+    wave: { ...defaults.wave, ...(config.wave ?? {}) },
+    player: { ...defaults.player, ...(config.player ?? {}) },
+    boss: { ...defaults.boss, ...(config.boss ?? {}) },
+    upgrade: { ...defaults.upgrade, ...(config.upgrade ?? {}) },
+  };
+};
+
 // Create deep clones of default configs
 const createDefaultConfig = (): GameConfigState => ({
-  enemies: JSON.parse(JSON.stringify(DEFAULT_ENEMY_CONFIGS)),
-  towers: JSON.parse(JSON.stringify(DEFAULT_TOWER_CONFIGS)),
+  enemies: cloneConfig(DEFAULT_ENEMY_CONFIGS),
+  towers: cloneConfig(DEFAULT_TOWER_CONFIGS),
   wave: {
     bossWaveInterval: DEFAULT_WAVE_CONFIG.bossWaveInterval,
     baseEnemiesPerWave: DEFAULT_WAVE_CONFIG.baseEnemiesPerWave,
@@ -88,16 +99,7 @@ const loadConfigFromStorage = (): GameConfigState => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      // Validate and merge with defaults
-      const defaults = createDefaultConfig();
-      return {
-        enemies: { ...defaults.enemies, ...parsed.enemies },
-        towers: { ...defaults.towers, ...parsed.towers },
-        wave: { ...defaults.wave, ...parsed.wave },
-        player: { ...defaults.player, ...parsed.player },
-        boss: { ...defaults.boss, ...parsed.boss },
-        upgrade: { ...defaults.upgrade, ...parsed.upgrade },
-      };
+      return mergeConfig(parsed);
     }
   } catch (error) {
     console.warn('Failed to load config from localStorage:', error);
@@ -114,7 +116,8 @@ const subscribers: Set<ConfigSubscriber> = new Set();
 
 // Notify all subscribers
 const notifySubscribers = () => {
-  subscribers.forEach((fn) => fn(currentConfig));
+  const snapshot = cloneConfig(currentConfig);
+  subscribers.forEach((fn) => fn(snapshot));
 };
 
 // Save to localStorage
