@@ -135,7 +135,7 @@ export const configStore = {
 
   /** Update entire config */
   setConfig: (config: GameConfigState) => {
-    currentConfig = JSON.parse(JSON.stringify(config));
+    currentConfig = mergeConfig(config);
     saveToStorage();
     notifySubscribers();
   },
@@ -146,7 +146,13 @@ export const configStore = {
       console.warn(`Enemy type ${type} not found`);
       return;
     }
-    currentConfig.enemies[type] = { ...currentConfig.enemies[type], ...updates };
+    currentConfig = {
+      ...currentConfig,
+      enemies: {
+        ...currentConfig.enemies,
+        [type]: { ...currentConfig.enemies[type], ...updates },
+      },
+    };
     saveToStorage();
     notifySubscribers();
   },
@@ -157,7 +163,13 @@ export const configStore = {
       console.warn(`Tower type ${type} not found`);
       return;
     }
-    currentConfig.towers[type] = { ...currentConfig.towers[type], ...updates };
+    currentConfig = {
+      ...currentConfig,
+      towers: {
+        ...currentConfig.towers,
+        [type]: { ...currentConfig.towers[type], ...updates },
+      },
+    };
     saveToStorage();
     notifySubscribers();
   },
@@ -168,7 +180,7 @@ export const configStore = {
       console.warn(`Enemy type ${type} already exists`);
       return false;
     }
-    currentConfig.enemies[type] = config;
+    currentConfig = { ...currentConfig, enemies: { ...currentConfig.enemies, [type]: cloneConfig(config) } };
     saveToStorage();
     notifySubscribers();
     return true;
@@ -180,7 +192,7 @@ export const configStore = {
       console.warn(`Tower type ${type} already exists`);
       return false;
     }
-    currentConfig.towers[type] = config;
+    currentConfig = { ...currentConfig, towers: { ...currentConfig.towers, [type]: cloneConfig(config) } };
     saveToStorage();
     notifySubscribers();
     return true;
