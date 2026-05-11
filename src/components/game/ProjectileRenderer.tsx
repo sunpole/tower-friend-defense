@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { Projectile, Tower } from '@/game/types';
-import { TOWER_CONFIGS, VISUAL_CONFIG } from '@/game/config';
+import { VISUAL_CONFIG } from '@/game/config';
+import { configStore } from '@/game/configStore';
 
 interface ProjectileRendererProps {
   projectiles: Projectile[];
@@ -87,7 +88,7 @@ export const ProjectileRenderer: React.FC<ProjectileRendererProps> = memo(({
     <g>
       {projectiles.map((projectile) => {
         const tower = towers.find((t) => t.id === projectile.towerId);
-        const color = tower ? TOWER_CONFIGS[tower.type].color : '#fff';
+        const color = tower ? configStore.getConfig().towers[tower.type]?.color ?? '#fff' : '#fff';
         return (
           <ProjectileSprite
             key={projectile.id}
