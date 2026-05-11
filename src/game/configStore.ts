@@ -226,28 +226,28 @@ export const configStore = {
 
   /** Update wave config */
   updateWave: (updates: Partial<RuntimeWaveConfig>) => {
-    currentConfig.wave = { ...currentConfig.wave, ...updates };
+    currentConfig = { ...currentConfig, wave: { ...currentConfig.wave, ...updates } };
     saveToStorage();
     notifySubscribers();
   },
 
   /** Update player config */
   updatePlayer: (updates: Partial<RuntimePlayerConfig>) => {
-    currentConfig.player = { ...currentConfig.player, ...updates };
+    currentConfig = { ...currentConfig, player: { ...currentConfig.player, ...updates } };
     saveToStorage();
     notifySubscribers();
   },
 
   /** Update boss config */
   updateBoss: (updates: Partial<RuntimeBossConfig>) => {
-    currentConfig.boss = { ...currentConfig.boss, ...updates };
+    currentConfig = { ...currentConfig, boss: { ...currentConfig.boss, ...updates } };
     saveToStorage();
     notifySubscribers();
   },
 
   /** Update upgrade config */
   updateUpgrade: (updates: Partial<RuntimeUpgradeConfig>) => {
-    currentConfig.upgrade = { ...currentConfig.upgrade, ...updates };
+    currentConfig = { ...currentConfig, upgrade: { ...currentConfig.upgrade, ...updates } };
     saveToStorage();
     notifySubscribers();
   },
