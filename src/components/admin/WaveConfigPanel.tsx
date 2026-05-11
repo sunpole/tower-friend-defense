@@ -16,6 +16,11 @@ export const WaveConfigPanel: React.FC<WaveConfigPanelProps> = ({ waveConfig, bo
   const handleBossChange = (field: keyof RuntimeBossConfig, value: number) => {
     configStore.updateBoss({ [field]: value });
   };
+  const numberInput = (value: number, onChange: (value: number) => void, min: number, step: number = 1) => (
+    <Input type="number" value={value} onChange={(e) => onChange(Number(e.target.value))}
+      onInput={(e) => onChange(Number(e.currentTarget.value))}
+      className="w-16 h-5 text-[11px] text-right px-1" min={min} step={step} />
+  );
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -26,7 +31,7 @@ export const WaveConfigPanel: React.FC<WaveConfigPanelProps> = ({ waveConfig, bo
         <div>
           <div className="flex justify-between items-center mb-1">
             <Label className="text-xs">Базовое кол-во врагов</Label>
-            <span className="text-xs font-bold text-primary">{waveConfig.baseEnemiesPerWave}</span>
+            {numberInput(waveConfig.baseEnemiesPerWave, (v) => handleWaveChange('baseEnemiesPerWave', v), 1)}
           </div>
           <Slider value={[waveConfig.baseEnemiesPerWave]} onValueChange={([v]) => handleWaveChange('baseEnemiesPerWave', v)} min={1} max={20} step={1} />
         </div>
@@ -34,7 +39,7 @@ export const WaveConfigPanel: React.FC<WaveConfigPanelProps> = ({ waveConfig, bo
         <div>
           <div className="flex justify-between items-center mb-1">
             <Label className="text-xs">Интервал боссов</Label>
-            <span className="text-xs font-bold text-primary">каждые {waveConfig.bossWaveInterval}</span>
+            {numberInput(waveConfig.bossWaveInterval, (v) => handleWaveChange('bossWaveInterval', v), 1)}
           </div>
           <Slider value={[waveConfig.bossWaveInterval]} onValueChange={([v]) => handleWaveChange('bossWaveInterval', v)} min={3} max={15} step={1} />
         </div>
@@ -42,7 +47,7 @@ export const WaveConfigPanel: React.FC<WaveConfigPanelProps> = ({ waveConfig, bo
         <div>
           <div className="flex justify-between items-center mb-1">
             <Label className="text-xs">Интервал спавна</Label>
-            <span className="text-xs font-bold text-primary">{waveConfig.spawnInterval.toFixed(1)}с</span>
+            {numberInput(waveConfig.spawnInterval, (v) => handleWaveChange('spawnInterval', v), 0.1, 0.1)}
           </div>
           <Slider value={[waveConfig.spawnInterval * 10]} onValueChange={([v]) => handleWaveChange('spawnInterval', v / 10)} min={1} max={30} step={1} />
         </div>
@@ -77,12 +82,7 @@ export const WaveConfigPanel: React.FC<WaveConfigPanelProps> = ({ waveConfig, bo
           <div key={field}>
             <div className="flex justify-between items-center mb-1">
               <Label className="text-xs">{label}</Label>
-              {format ? (
-                <span className="text-xs font-bold text-yellow-400">{format(value)}</span>
-              ) : (
-                <Input type="number" value={value} onChange={(e) => handleBossChange(field, Number(e.target.value))}
-                  className="w-14 h-5 text-[11px] text-right px-1" min={min} />
-              )}
+              {numberInput(value, (v) => handleBossChange(field, v), min, step)}
             </div>
             <Slider
               value={[fromSlider ? value * (sliderMax! / max) : value]}

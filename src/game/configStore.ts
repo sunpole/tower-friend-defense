@@ -4,11 +4,8 @@
  */
 
 import {
-  EnemyType,
-  TowerType,
   EnemyConfig,
   TowerConfig,
-  ProjectileType,
   ENEMY_CONFIGS as DEFAULT_ENEMY_CONFIGS,
   TOWER_CONFIGS as DEFAULT_TOWER_CONFIGS,
   WAVE_CONFIG as DEFAULT_WAVE_CONFIG,
@@ -54,10 +51,24 @@ export interface GameConfigState {
 
 const STORAGE_KEY = 'tower-defense-config';
 
+const cloneConfig = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+
+const mergeConfig = (config: Partial<GameConfigState>): GameConfigState => {
+  const defaults = createDefaultConfig();
+  return {
+    enemies: config.enemies ? cloneConfig(config.enemies) : defaults.enemies,
+    towers: config.towers ? cloneConfig(config.towers) : defaults.towers,
+    wave: { ...defaults.wave, ...(config.wave ?? {}) },
+    player: { ...defaults.player, ...(config.player ?? {}) },
+    boss: { ...defaults.boss, ...(config.boss ?? {}) },
+    upgrade: { ...defaults.upgrade, ...(config.upgrade ?? {}) },
+  };
+};
+
 // Create deep clones of default configs
 const createDefaultConfig = (): GameConfigState => ({
-  enemies: JSON.parse(JSON.stringify(DEFAULT_ENEMY_CONFIGS)),
-  towers: JSON.parse(JSON.stringify(DEFAULT_TOWER_CONFIGS)),
+  enemies: cloneConfig(DEFAULT_ENEMY_CONFIGS),
+  towers: cloneConfig(DEFAULT_TOWER_CONFIGS),
   wave: {
     bossWaveInterval: DEFAULT_WAVE_CONFIG.bossWaveInterval,
     baseEnemiesPerWave: DEFAULT_WAVE_CONFIG.baseEnemiesPerWave,
@@ -88,16 +99,7 @@ const loadConfigFromStorage = (): GameConfigState => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      // Validate and merge with defaults
-      const defaults = createDefaultConfig();
-      return {
-        enemies: { ...defaults.enemies, ...parsed.enemies },
-        towers: { ...defaults.towers, ...parsed.towers },
-        wave: { ...defaults.wave, ...parsed.wave },
-        player: { ...defaults.player, ...parsed.player },
-        boss: { ...defaults.boss, ...parsed.boss },
-        upgrade: { ...defaults.upgrade, ...parsed.upgrade },
-      };
+      return mergeConfig(parsed);
     }
   } catch (error) {
     console.warn('Failed to load config from localStorage:', error);
@@ -114,7 +116,8 @@ const subscribers: Set<ConfigSubscriber> = new Set();
 
 // Notify all subscribers
 const notifySubscribers = () => {
-  subscribers.forEach((fn) => fn(currentConfig));
+  const snapshot = cloneConfig(currentConfig);
+  subscribers.forEach((fn) => fn(snapshot));
 };
 
 // Save to localStorage
@@ -132,7 +135,7 @@ export const configStore = {
 
   /** Update entire config */
   setConfig: (config: GameConfigState) => {
-    currentConfig = JSON.parse(JSON.stringify(config));
+    currentConfig = mergeConfig(config);
     saveToStorage();
     notifySubscribers();
   },
@@ -143,7 +146,13 @@ export const configStore = {
       console.warn(`Enemy type ${type} not found`);
       return;
     }
-    currentConfig.enemies[type] = { ...currentConfig.enemies[type], ...updates };
+    currentConfig = {
+      ...currentConfig,
+      enemies: {
+        ...currentConfig.enemies,
+        [type]: { ...currentConfig.enemies[type], ...updates },
+      },
+    };
     saveToStorage();
     notifySubscribers();
   },
@@ -154,7 +163,13 @@ export const configStore = {
       console.warn(`Tower type ${type} not found`);
       return;
     }
-    currentConfig.towers[type] = { ...currentConfig.towers[type], ...updates };
+    currentConfig = {
+      ...currentConfig,
+      towers: {
+        ...currentConfig.towers,
+        [type]: { ...currentConfig.towers[type], ...updates },
+      },
+    };
     saveToStorage();
     notifySubscribers();
   },
@@ -165,7 +180,7 @@ export const configStore = {
       console.warn(`Enemy type ${type} already exists`);
       return false;
     }
-    currentConfig.enemies[type] = config;
+    currentConfig = { ...currentConfig, enemies: { ...currentConfig.enemies, [type]: cloneConfig(config) } };
     saveToStorage();
     notifySubscribers();
     return true;
@@ -177,7 +192,7 @@ export const configStore = {
       console.warn(`Tower type ${type} already exists`);
       return false;
     }
-    currentConfig.towers[type] = config;
+    currentConfig = { ...currentConfig, towers: { ...currentConfig.towers, [type]: cloneConfig(config) } };
     saveToStorage();
     notifySubscribers();
     return true;
@@ -186,7 +201,17 @@ export const configStore = {
   /** Delete an enemy type */
   deleteEnemy: (type: string) => {
     if (!currentConfig.enemies[type]) return false;
-    delete currentConfig.enemies[type];
+    if (Object.keys(currentConfig.enemies).length <= 1) return false;
+    const { [type]: _deletedEnemy, ...remainingEnemies } = currentConfig.enemies;
+    currentConfig = {
+      ...currentConfig,
+      enemies: Object.fromEntries(
+        Object.entries(remainingEnemies).map(([enemyType, enemyConfig]) => [
+          enemyType,
+          enemyConfig.spawnOnDeath === type ? { ...enemyConfig, spawnOnDeath: undefined, spawnCount: 0 } : enemyConfig,
+        ])
+      ),
+    };
     saveToStorage();
     notifySubscribers();
     return true;
@@ -195,7 +220,12 @@ export const configStore = {
   /** Delete a tower type */
   deleteTower: (type: string) => {
     if (!currentConfig.towers[type]) return false;
-    delete currentConfig.towers[type];
+    if (Object.keys(currentConfig.towers).length <= 1) return false;
+    const { [type]: _deletedTower, ...remainingTowers } = currentConfig.towers;
+    currentConfig = {
+      ...currentConfig,
+      towers: remainingTowers,
+    };
     saveToStorage();
     notifySubscribers();
     return true;
@@ -203,28 +233,28 @@ export const configStore = {
 
   /** Update wave config */
   updateWave: (updates: Partial<RuntimeWaveConfig>) => {
-    currentConfig.wave = { ...currentConfig.wave, ...updates };
+    currentConfig = { ...currentConfig, wave: { ...currentConfig.wave, ...updates } };
     saveToStorage();
     notifySubscribers();
   },
 
   /** Update player config */
   updatePlayer: (updates: Partial<RuntimePlayerConfig>) => {
-    currentConfig.player = { ...currentConfig.player, ...updates };
+    currentConfig = { ...currentConfig, player: { ...currentConfig.player, ...updates } };
     saveToStorage();
     notifySubscribers();
   },
 
   /** Update boss config */
   updateBoss: (updates: Partial<RuntimeBossConfig>) => {
-    currentConfig.boss = { ...currentConfig.boss, ...updates };
+    currentConfig = { ...currentConfig, boss: { ...currentConfig.boss, ...updates } };
     saveToStorage();
     notifySubscribers();
   },
 
   /** Update upgrade config */
   updateUpgrade: (updates: Partial<RuntimeUpgradeConfig>) => {
-    currentConfig.upgrade = { ...currentConfig.upgrade, ...updates };
+    currentConfig = { ...currentConfig, upgrade: { ...currentConfig.upgrade, ...updates } };
     saveToStorage();
     notifySubscribers();
   },
@@ -249,7 +279,7 @@ export const configStore = {
       if (!parsed.enemies || !parsed.towers || !parsed.wave || !parsed.player || !parsed.boss || !parsed.upgrade) {
         throw new Error('Invalid config structure');
       }
-      currentConfig = parsed;
+      currentConfig = mergeConfig(parsed);
       saveToStorage();
       notifySubscribers();
       return true;
@@ -276,7 +306,7 @@ export const configStore = {
 import { useState, useEffect } from 'react';
 
 export function useGameConfig(): GameConfigState {
-  const [config, setConfig] = useState<GameConfigState>(configStore.getConfig());
+  const [config, setConfig] = useState<GameConfigState>(() => cloneConfig(configStore.getConfig()));
 
   useEffect(() => {
     return configStore.subscribe(setConfig);

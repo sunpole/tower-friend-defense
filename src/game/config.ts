@@ -92,8 +92,8 @@ export const BOSS_CONFIG = {
 // ============================================================
 // ENEMY TYPES
 // ============================================================
-/** Типы врагов */
-export type EnemyType = 'simple' | 'fat' | 'thin' | 'double' | 'ghost' | 'armored';
+/** Типы врагов: строковый ID, чтобы админка могла создавать и удалять любые типы */
+export type EnemyType = string;
 
 export interface EnemyConfig {
   /** Название врага */
@@ -173,8 +173,8 @@ export const ENEMY_CONFIGS: Record<EnemyType, EnemyConfig> = {
 // ============================================================
 // TOWER TYPES
 // ============================================================
-/** Типы башен */
-export type TowerType = 'sniper' | 'knight' | 'laser' | 'fountain' | 'cannon' | 'frost';
+/** Типы башен: строковый ID, чтобы админка могла создавать и удалять любые типы */
+export type TowerType = string;
 
 /** Типы снарядов */
 export type ProjectileType = 'bullet' | 'line' | 'aoe';

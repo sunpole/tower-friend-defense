@@ -1,6 +1,6 @@
 import React from 'react';
 import { Enemy } from '@/game/types';
-import { ENEMY_CONFIGS } from '@/game/config';
+import { configStore } from '@/game/configStore';
 
 interface PathVisualizerProps {
   enemies: Enemy[];
@@ -27,7 +27,7 @@ export const PathVisualizer: React.FC<PathVisualizerProps> = ({ enemies, showPat
           .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
           .join(' ');
 
-        const pathColor = ENEMY_CONFIGS[enemy.type]?.color || '#ef4444';
+        const pathColor = configStore.getConfig().enemies[enemy.type]?.color || '#ef4444';
 
         return (
           <g key={`path-${enemy.id}`}>

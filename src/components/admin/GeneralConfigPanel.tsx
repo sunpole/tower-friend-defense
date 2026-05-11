@@ -16,6 +16,11 @@ export const GeneralConfigPanel: React.FC<GeneralConfigPanelProps> = ({ playerCo
   const handleUpgradeChange = (field: keyof RuntimeUpgradeConfig, value: number) => {
     configStore.updateUpgrade({ [field]: value });
   };
+  const numericInput = (value: number, onChange: (value: number) => void, min: number, step: number = 1) => (
+    <Input type="number" value={value} onChange={(e) => onChange(Number(e.target.value))}
+      onInput={(e) => onChange(Number(e.currentTarget.value))}
+      className="w-16 h-5 text-[11px] text-right px-1" min={min} step={step} />
+  );
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
@@ -26,8 +31,7 @@ export const GeneralConfigPanel: React.FC<GeneralConfigPanelProps> = ({ playerCo
         <div>
           <div className="flex justify-between items-center mb-1">
             <Label className="text-xs">Золото</Label>
-            <Input type="number" value={playerConfig.startingGold} onChange={(e) => handlePlayerChange('startingGold', Number(e.target.value))}
-              className="w-16 h-5 text-[11px] text-right px-1" min={50} />
+            {numericInput(playerConfig.startingGold, (v) => handlePlayerChange('startingGold', v), 1)}
           </div>
           <Slider value={[playerConfig.startingGold]} onValueChange={([v]) => handlePlayerChange('startingGold', v)} min={50} max={1000} step={10} />
         </div>
@@ -35,8 +39,7 @@ export const GeneralConfigPanel: React.FC<GeneralConfigPanelProps> = ({ playerCo
         <div>
           <div className="flex justify-between items-center mb-1">
             <Label className="text-xs">Жизни</Label>
-            <Input type="number" value={playerConfig.startingLives} onChange={(e) => handlePlayerChange('startingLives', Number(e.target.value))}
-              className="w-16 h-5 text-[11px] text-right px-1" min={1} />
+            {numericInput(playerConfig.startingLives, (v) => handlePlayerChange('startingLives', v), 1)}
           </div>
           <Slider value={[playerConfig.startingLives]} onValueChange={([v]) => handlePlayerChange('startingLives', v)} min={1} max={100} step={1} />
         </div>
@@ -70,7 +73,7 @@ export const GeneralConfigPanel: React.FC<GeneralConfigPanelProps> = ({ playerCo
           <div key={field}>
             <div className="flex justify-between items-center mb-1">
               <Label className="text-xs">{label}</Label>
-              <span className="text-xs font-bold text-primary">{display}</span>
+              {numericInput(value, (v) => handleUpgradeChange(field, v), min, step)}
             </div>
             <Slider
               value={[fromSlider ? value * (sliderMax! / max) : value]}
