@@ -74,6 +74,14 @@ export const TowerConfigPanel: React.FC<TowerConfigPanelProps> = ({ type, config
         ))}
       </div>
 
+      {/* Projectile speed full row */}
+      <div className="mt-1">
+        <Label className="text-[9px] text-muted-foreground">🚀 Скорость снаряда</Label>
+        <Input type="number" value={config.projectileSpeed}
+          onChange={(e) => handleChange('projectileSpeed', e.target.value)}
+          className="h-6 text-[11px] px-1" min={50} step={50} />
+      </div>
+
       {/* Type, Color, Icon */}
       <div className="grid grid-cols-3 gap-1 mt-1">
         <div>
@@ -99,6 +107,13 @@ export const TowerConfigPanel: React.FC<TowerConfigPanelProps> = ({ type, config
           <Input value={config.icon} onChange={(e) => handleChange('icon', e.target.value)}
             className="h-6 text-center text-sm" maxLength={4} />
         </div>
+      </div>
+
+      {/* Description */}
+      <div className="mt-1">
+        <Label className="text-[9px] text-muted-foreground">📝 Описание</Label>
+        <Input value={config.description} onChange={(e) => handleChange('description', e.target.value)}
+          className="h-6 text-[11px] px-1" placeholder="Описание башни" />
       </div>
     </div>
   );

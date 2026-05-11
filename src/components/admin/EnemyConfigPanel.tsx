@@ -94,6 +94,13 @@ export const EnemyConfigPanel: React.FC<EnemyConfigPanelProps> = ({ type, config
             className="h-6 text-[11px] px-1" min={0} max={10} disabled={!config.spawnOnDeath} />
         </div>
       </div>
+
+      {/* Description */}
+      <div className="mt-1">
+        <Label className="text-[9px] text-muted-foreground">📝 Описание</Label>
+        <Input value={config.description} onChange={(e) => handleChange('description', e.target.value)}
+          className="h-6 text-[11px] px-1" placeholder="Описание врага" />
+      </div>
     </div>
   );
 };
