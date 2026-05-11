@@ -201,7 +201,11 @@ export const configStore = {
   /** Delete an enemy type */
   deleteEnemy: (type: string) => {
     if (!currentConfig.enemies[type]) return false;
-    delete currentConfig.enemies[type];
+    const { [type]: _deletedEnemy, ...remainingEnemies } = currentConfig.enemies;
+    currentConfig = {
+      ...currentConfig,
+      enemies: remainingEnemies,
+    };
     saveToStorage();
     notifySubscribers();
     return true;
@@ -210,7 +214,11 @@ export const configStore = {
   /** Delete a tower type */
   deleteTower: (type: string) => {
     if (!currentConfig.towers[type]) return false;
-    delete currentConfig.towers[type];
+    const { [type]: _deletedTower, ...remainingTowers } = currentConfig.towers;
+    currentConfig = {
+      ...currentConfig,
+      towers: remainingTowers,
+    };
     saveToStorage();
     notifySubscribers();
     return true;
@@ -264,7 +272,7 @@ export const configStore = {
       if (!parsed.enemies || !parsed.towers || !parsed.wave || !parsed.player || !parsed.boss || !parsed.upgrade) {
         throw new Error('Invalid config structure');
       }
-      currentConfig = parsed;
+      currentConfig = mergeConfig(parsed);
       saveToStorage();
       notifySubscribers();
       return true;
@@ -291,7 +299,7 @@ export const configStore = {
 import { useState, useEffect } from 'react';
 
 export function useGameConfig(): GameConfigState {
-  const [config, setConfig] = useState<GameConfigState>(configStore.getConfig());
+  const [config, setConfig] = useState<GameConfigState>(() => cloneConfig(configStore.getConfig()));
 
   useEffect(() => {
     return configStore.subscribe(setConfig);
