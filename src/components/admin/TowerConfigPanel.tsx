@@ -13,8 +13,6 @@ interface TowerConfigPanelProps {
   config: TowerConfig;
 }
 
-const DEFAULT_TYPES = ['sniper', 'knight', 'laser', 'fountain', 'cannon', 'frost'];
-
 export const TowerConfigPanel: React.FC<TowerConfigPanelProps> = ({ type, config }) => {
   const handleChange = (field: keyof TowerConfig, value: string | number) => {
     const numericFields = ['damage', 'range', 'fireRate', 'projectileSpeed', 'cost'];
@@ -22,12 +20,10 @@ export const TowerConfigPanel: React.FC<TowerConfigPanelProps> = ({ type, config
   };
 
   const handleDelete = () => {
-    if (DEFAULT_TYPES.includes(type)) { toast.error('Нельзя удалить стандартную башню'); return; }
-    configStore.deleteTower(type);
-    toast.success(`Башня "${config.name}" удалена`);
+    const deleted = configStore.deleteTower(type);
+    toast[deleted ? 'success' : 'error'](deleted ? `Башня "${config.name}" удалена` : 'Нельзя удалить последнюю башню');
   };
 
-  const isCustom = !DEFAULT_TYPES.includes(type);
   const projectileTypes: ProjectileType[] = ['bullet', 'line', 'aoe'];
 
   return (
@@ -41,15 +37,14 @@ export const TowerConfigPanel: React.FC<TowerConfigPanelProps> = ({ type, config
           <Input
             value={config.name}
             onChange={(e) => handleChange('name', e.target.value)}
+            onInput={(e) => handleChange('name', e.currentTarget.value)}
             className="font-bold text-xs h-5 px-1 bg-transparent border-transparent hover:border-border focus:border-primary"
           />
           <span className="text-[9px] text-muted-foreground uppercase tracking-wider">{type}</span>
         </div>
-        {isCustom && (
-          <Button variant="ghost" size="icon" className="h-5 w-5 flex-shrink-0" onClick={handleDelete}>
-            <Trash2 className="w-3 h-3 text-destructive" />
-          </Button>
-        )}
+        <Button variant="ghost" size="icon" className="h-5 w-5 flex-shrink-0" onClick={handleDelete}>
+          <Trash2 className="w-3 h-3 text-destructive" />
+        </Button>
       </div>
 
       {/* Stats */}
@@ -66,6 +61,7 @@ export const TowerConfigPanel: React.FC<TowerConfigPanelProps> = ({ type, config
               type="number"
               value={val}
               onChange={(e) => handleChange(field, e.target.value)}
+              onInput={(e) => handleChange(field, e.currentTarget.value)}
               className="h-6 text-[11px] px-1"
               min={min}
               step={step}
@@ -79,6 +75,7 @@ export const TowerConfigPanel: React.FC<TowerConfigPanelProps> = ({ type, config
         <Label className="text-[9px] text-muted-foreground">🚀 Скорость снаряда</Label>
         <Input type="number" value={config.projectileSpeed}
           onChange={(e) => handleChange('projectileSpeed', e.target.value)}
+          onInput={(e) => handleChange('projectileSpeed', e.currentTarget.value)}
           className="h-6 text-[11px] px-1" min={50} step={50} />
       </div>
 
@@ -100,11 +97,13 @@ export const TowerConfigPanel: React.FC<TowerConfigPanelProps> = ({ type, config
         <div>
           <Label className="text-[9px] text-muted-foreground">Цвет</Label>
           <input type="color" value={config.color} onChange={(e) => handleChange('color', e.target.value)}
+            onInput={(e) => handleChange('color', e.currentTarget.value)}
             className="w-full h-6 rounded border border-border cursor-pointer bg-transparent" />
         </div>
         <div>
           <Label className="text-[9px] text-muted-foreground">Иконка</Label>
           <Input value={config.icon} onChange={(e) => handleChange('icon', e.target.value)}
+            onInput={(e) => handleChange('icon', e.currentTarget.value)}
             className="h-6 text-center text-sm" maxLength={4} />
         </div>
       </div>
@@ -113,6 +112,7 @@ export const TowerConfigPanel: React.FC<TowerConfigPanelProps> = ({ type, config
       <div className="mt-1">
         <Label className="text-[9px] text-muted-foreground">📝 Описание</Label>
         <Input value={config.description} onChange={(e) => handleChange('description', e.target.value)}
+          onInput={(e) => handleChange('description', e.currentTarget.value)}
           className="h-6 text-[11px] px-1" placeholder="Описание башни" />
       </div>
     </div>
