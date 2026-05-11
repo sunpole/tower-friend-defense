@@ -1,33 +1,34 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect } from 'react';
 
+/**
+ * Stable game loop using requestAnimationFrame.
+ * The callback is stored in a ref so that updating it does NOT cancel and
+ * restart the RAF — which is the main cause of frame stutter / movement hitches
+ * when the parent component re-renders ~60 times per second.
+ */
 export function useGameLoop(
   callback: (deltaTime: number) => void,
   isRunning: boolean
 ) {
-  const requestRef = useRef<number>();
-  const previousTimeRef = useRef<number>();
-
-  const animate = useCallback(
-    (time: number) => {
-      if (previousTimeRef.current !== undefined) {
-        const deltaTime = (time - previousTimeRef.current) / 1000; // Convert to seconds
-        callback(Math.min(deltaTime, 0.1)); // Cap at 100ms to prevent huge jumps
-      }
-      previousTimeRef.current = time;
-      requestRef.current = requestAnimationFrame(animate);
-    },
-    [callback]
-  );
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
 
   useEffect(() => {
-    if (isRunning) {
-      previousTimeRef.current = undefined;
-      requestRef.current = requestAnimationFrame(animate);
-    }
-    return () => {
-      if (requestRef.current) {
-        cancelAnimationFrame(requestRef.current);
+    if (!isRunning) return;
+
+    let rafId = 0;
+    let prevTime: number | undefined;
+
+    const tick = (time: number) => {
+      if (prevTime !== undefined) {
+        const dt = Math.min((time - prevTime) / 1000, 0.1);
+        callbackRef.current(dt);
       }
+      prevTime = time;
+      rafId = requestAnimationFrame(tick);
     };
-  }, [isRunning, animate]);
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [isRunning]);
 }

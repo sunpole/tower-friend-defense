@@ -93,10 +93,18 @@ export const TowerDefenseGame: React.FC = () => {
   const prevLivesRef = useRef(runtimeConfig.player.startingLives);
   const prevEnemyCountRef = useRef(0);
 
+  const lastDeathSoundRef = useRef(0);
   useEffect(() => {
     if (gameState.lives < prevLivesRef.current) audioManager.playLifeLost();
     prevLivesRef.current = gameState.lives;
-    if (gameState.enemies.length < prevEnemyCountRef.current && prevEnemyCountRef.current > 0) audioManager.playEnemyDeath();
+    // Throttle enemy death sounds to avoid frame hitches from many simultaneous Web Audio calls
+    if (gameState.enemies.length < prevEnemyCountRef.current && prevEnemyCountRef.current > 0) {
+      const now = performance.now();
+      if (now - lastDeathSoundRef.current > 80) {
+        audioManager.playEnemyDeath();
+        lastDeathSoundRef.current = now;
+      }
+    }
     prevEnemyCountRef.current = gameState.enemies.length;
     if (gameState.gameStatus === 'victory') { audioManager.playVictory(); audioManager.stopMusic(); }
     else if (gameState.gameStatus === 'defeat') { audioManager.playDefeat(); audioManager.stopMusic(); }
