@@ -13,8 +13,6 @@ interface EnemyConfigPanelProps {
   config: EnemyConfig;
 }
 
-const DEFAULT_TYPES = ['simple', 'fat', 'thin', 'double', 'ghost', 'armored'];
-
 export const EnemyConfigPanel: React.FC<EnemyConfigPanelProps> = ({ type, config }) => {
   const gameConfig = useGameConfig();
   const enemyTypes = Object.keys(gameConfig.enemies);
@@ -27,12 +25,9 @@ export const EnemyConfigPanel: React.FC<EnemyConfigPanelProps> = ({ type, config
   };
 
   const handleDelete = () => {
-    if (DEFAULT_TYPES.includes(type)) { toast.error('Нельзя удалить стандартного врага'); return; }
-    configStore.deleteEnemy(type);
-    toast.success(`Враг "${config.name}" удалён`);
+    const deleted = configStore.deleteEnemy(type);
+    toast[deleted ? 'success' : 'error'](deleted ? `Враг "${config.name}" удалён` : 'Нельзя удалить последнего врага');
   };
-
-  const isCustom = !DEFAULT_TYPES.includes(type);
 
   return (
     <div className="relative rounded-lg border border-border bg-card/80 p-2.5 hover:border-primary/40 transition-colors">
@@ -44,14 +39,13 @@ export const EnemyConfigPanel: React.FC<EnemyConfigPanelProps> = ({ type, config
         </div>
         <div className="flex-1 min-w-0">
           <Input value={config.name} onChange={(e) => handleChange('name', e.target.value)}
+            onInput={(e) => handleChange('name', e.currentTarget.value)}
             className="font-bold text-xs h-5 px-1 bg-transparent border-transparent hover:border-border focus:border-primary" />
           <span className="text-[9px] text-muted-foreground uppercase tracking-wider">{type}</span>
         </div>
-        {isCustom && (
-          <Button variant="ghost" size="icon" className="h-5 w-5 flex-shrink-0" onClick={handleDelete}>
-            <Trash2 className="w-3 h-3 text-destructive" />
-          </Button>
-        )}
+        <Button variant="ghost" size="icon" className="h-5 w-5 flex-shrink-0" onClick={handleDelete}>
+          <Trash2 className="w-3 h-3 text-destructive" />
+        </Button>
       </div>
 
       {/* Stats */}
@@ -64,6 +58,7 @@ export const EnemyConfigPanel: React.FC<EnemyConfigPanelProps> = ({ type, config
           <div key={field}>
             <Label className="text-[9px] text-muted-foreground">{label}</Label>
             <Input type="number" value={val} onChange={(e) => handleChange(field, e.target.value)}
+              onInput={(e) => handleChange(field, e.currentTarget.value)}
               className="h-6 text-[11px] px-1" min={min} />
           </div>
         ))}
@@ -74,6 +69,7 @@ export const EnemyConfigPanel: React.FC<EnemyConfigPanelProps> = ({ type, config
         <div className="w-8 flex-shrink-0">
           <Label className="text-[9px] text-muted-foreground">🎨</Label>
           <input type="color" value={config.color} onChange={(e) => handleChange('color', e.target.value)}
+            onInput={(e) => handleChange('color', e.currentTarget.value)}
             className="w-full h-6 rounded border border-border cursor-pointer bg-transparent" />
         </div>
         <div className="flex-1">
@@ -91,7 +87,8 @@ export const EnemyConfigPanel: React.FC<EnemyConfigPanelProps> = ({ type, config
         <div className="w-10 flex-shrink-0">
           <Label className="text-[9px] text-muted-foreground">×</Label>
           <Input type="number" value={config.spawnCount || 0} onChange={(e) => handleChange('spawnCount', e.target.value)}
-            className="h-6 text-[11px] px-1" min={0} max={10} disabled={!config.spawnOnDeath} />
+            onInput={(e) => handleChange('spawnCount', e.currentTarget.value)}
+            className="h-6 text-[11px] px-1" min={0} max={10} />
         </div>
       </div>
 
@@ -99,6 +96,7 @@ export const EnemyConfigPanel: React.FC<EnemyConfigPanelProps> = ({ type, config
       <div className="mt-1">
         <Label className="text-[9px] text-muted-foreground">📝 Описание</Label>
         <Input value={config.description} onChange={(e) => handleChange('description', e.target.value)}
+          onInput={(e) => handleChange('description', e.currentTarget.value)}
           className="h-6 text-[11px] px-1" placeholder="Описание врага" />
       </div>
     </div>
