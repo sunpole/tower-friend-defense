@@ -56,8 +56,8 @@ const cloneConfig = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 const mergeConfig = (config: Partial<GameConfigState>): GameConfigState => {
   const defaults = createDefaultConfig();
   return {
-    enemies: { ...defaults.enemies, ...(config.enemies ?? {}) },
-    towers: { ...defaults.towers, ...(config.towers ?? {}) },
+    enemies: config.enemies ? cloneConfig(config.enemies) : defaults.enemies,
+    towers: config.towers ? cloneConfig(config.towers) : defaults.towers,
     wave: { ...defaults.wave, ...(config.wave ?? {}) },
     player: { ...defaults.player, ...(config.player ?? {}) },
     boss: { ...defaults.boss, ...(config.boss ?? {}) },
@@ -201,10 +201,16 @@ export const configStore = {
   /** Delete an enemy type */
   deleteEnemy: (type: string) => {
     if (!currentConfig.enemies[type]) return false;
+    if (Object.keys(currentConfig.enemies).length <= 1) return false;
     const { [type]: _deletedEnemy, ...remainingEnemies } = currentConfig.enemies;
     currentConfig = {
       ...currentConfig,
-      enemies: remainingEnemies,
+      enemies: Object.fromEntries(
+        Object.entries(remainingEnemies).map(([enemyType, enemyConfig]) => [
+          enemyType,
+          enemyConfig.spawnOnDeath === type ? { ...enemyConfig, spawnOnDeath: undefined, spawnCount: 0 } : enemyConfig,
+        ])
+      ),
     };
     saveToStorage();
     notifySubscribers();
@@ -214,6 +220,7 @@ export const configStore = {
   /** Delete a tower type */
   deleteTower: (type: string) => {
     if (!currentConfig.towers[type]) return false;
+    if (Object.keys(currentConfig.towers).length <= 1) return false;
     const { [type]: _deletedTower, ...remainingTowers } = currentConfig.towers;
     currentConfig = {
       ...currentConfig,
